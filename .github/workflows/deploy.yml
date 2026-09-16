@@ -34,6 +34,10 @@ jobs:
           VITE_ALLOWED_DOMAIN: ${{ vars.VITE_ALLOWED_DOMAIN }}
           VITE_SHAREPOINT_HOSTNAME: ${{ vars.VITE_SHAREPOINT_HOSTNAME }}
           VITE_SHAREPOINT_SITE_PATH: ${{ vars.VITE_SHAREPOINT_SITE_PATH }}
+          # Optional override — only needed once you switch to serving from a
+          # custom domain's root instead of the github.io/<repo>/ subpath.
+          # Set a repo Actions variable named BASE_PATH to "/" at that point.
+          BASE_PATH: ${{ vars.BASE_PATH }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

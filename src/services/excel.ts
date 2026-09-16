@@ -92,7 +92,10 @@ let templateBytesCache: ArrayBuffer | null = null;
 
 async function getTemplateBytes(): Promise<ArrayBuffer> {
   if (templateBytesCache) return templateBytesCache;
-  const res = await fetch("/templates/response-template.xlsx");
+  // Base-relative (no leading slash) so this resolves correctly whether the
+  // app is served from domain root or a subpath (e.g. GitHub Pages project
+  // sites at /<repo>/) — import.meta.env.BASE_URL is Vite's resolved `base`.
+  const res = await fetch(`${import.meta.env.BASE_URL}templates/response-template.xlsx`);
   if (!res.ok) {
     throw new Error(
       "Could not load public/templates/response-template.xlsx — run " +

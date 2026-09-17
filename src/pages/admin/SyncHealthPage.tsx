@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getUnresolved, retryItem, type SyncQueueFields } from "../../services/syncQueue";
+import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { ListItem } from "../../services/lists";
 
 /**
@@ -44,7 +45,9 @@ export function SyncHealthPage() {
   }
 
   return (
-    <div className="page page--wide">
+    <div className="app-shell">
+      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <div className="page page--wide">
       <h1>Sync Health</h1>
       <p>Responses still pending or failed sync to their Excel workbook, across all forms.</p>
 
@@ -87,6 +90,7 @@ export function SyncHealthPage() {
           </tbody>
         </table>
       )}
+      </div>
     </div>
   );
 }

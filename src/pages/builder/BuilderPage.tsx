@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { getFormById, publishForm, saveDraft } from "../../services/forms";
 import { listConnectorConfigs } from "../../services/connectorConfigs";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
@@ -10,6 +10,7 @@ import { EditPolicyPanel } from "../../components/builder/EditPolicyPanel";
 import { FormSettingsPanel } from "../../components/builder/FormSettingsPanel";
 import { BranchingPanel } from "../../components/builder/BranchingPanel";
 import { PreviewModal } from "../../components/builder/PreviewModal";
+import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
 
 type Tab = "content" | "branching" | "branding" | "sharing" | "settings";
@@ -93,11 +94,9 @@ export function BuilderPage() {
   }
 
   return (
-    <div className="page page--wide">
-      <p>
-        <Link to="/">← Back to my forms</Link>
-      </p>
-
+    <div className="app-shell">
+      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <div className="page page--wide">
       <div className="builder-header">
         <input
           className="builder-header__title"
@@ -162,6 +161,7 @@ export function BuilderPage() {
       <p className="builder-owner">Owner: {form.owner.upn}</p>
 
       {showPreview && <PreviewModal form={form} onClose={() => setShowPreview(false)} />}
+      </div>
     </div>
   );
 }

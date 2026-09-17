@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getFormById } from "../../services/forms";
 import { getResponsesForForm } from "../../services/responses";
 import { responseGridColumns, type ResponseRow } from "../../services/excel";
+import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { FormDefinition } from "../../formsSchema/types";
 
 export function ResponsesPage() {
@@ -40,11 +41,11 @@ export function ResponsesPage() {
   const columns = responseGridColumns(form);
 
   return (
-    <div className="page">
+    <div className="app-shell">
+      <AppTopbar backTo={{ to: `/builder/${form.id}`, label: "Builder" }} />
+      <div className="page page--wide">
       <p>
-        <Link to={`/builder/${form.id}`}>← Back to builder</Link>
-        {" · "}
-        <Link to="/admin/sync-health">Sync health</Link>
+        <Link to="/admin/sync-health">🩺 Sync health</Link>
       </p>
       <h1>{form.title} — Responses</h1>
       <p>{rows.length} response(s)</p>
@@ -82,6 +83,7 @@ export function ResponsesPage() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

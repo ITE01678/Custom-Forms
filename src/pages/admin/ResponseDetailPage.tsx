@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { getFormById, getFormVersion } from "../../services/forms";
 import { flattenFields, getResponseByRowIndex } from "../../services/excel";
@@ -9,6 +9,7 @@ import { updateResponse } from "../../services/responses";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { formatAnswer } from "../../lib/formatAnswer";
 import { FillRunner } from "../../components/runtime/FillRunner";
+import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { AnswerValue, AuditEntry, FormDefinition, FormResponse } from "../../formsSchema/types";
 
 export function ResponseDetailPage() {
@@ -83,7 +84,9 @@ export function ResponseDetailPage() {
     }
 
     return (
-      <div className="page">
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }} />
+        <div className="page page--wide">
         <button onClick={() => setEditing(false)}>← Cancel edit</button>
         <FillRunner
           form={pinnedForm}
@@ -94,6 +97,7 @@ export function ResponseDetailPage() {
           banner={<>Editing as admin ({email}) — this will be recorded in the audit trail.</>}
           onSubmit={handleAdminEditSubmit}
         />
+        </div>
       </div>
     );
   }
@@ -101,10 +105,9 @@ export function ResponseDetailPage() {
   const fields = flattenFields(pinnedForm);
 
   return (
-    <div className="page">
-      <p>
-        <Link to={`/admin/forms/${form.id}/responses`}>← Back to responses</Link>
-      </p>
+    <div className="app-shell">
+      <AppTopbar backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }} />
+      <div className="page page--wide">
       <h1>{form.title}</h1>
       <p>
         Submitted by <strong>{response.respondentUpn}</strong>
@@ -160,6 +163,7 @@ export function ResponseDetailPage() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );

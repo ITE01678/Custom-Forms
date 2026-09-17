@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { createForm, listMyForms, type StoredForm } from "../services/forms";
+import { AppTopbar } from "../components/layout/AppTopbar";
 
 export function Dashboard() {
-  const { email, displayName, logout } = useAuth();
+  const { email, displayName } = useAuth();
   const navigate = useNavigate();
 
   const [forms, setForms] = useState<StoredForm[]>([]);
@@ -39,44 +40,61 @@ export function Dashboard() {
   }
 
   return (
-    <div className="page">
-      <header className="page__header">
-        <h1>Custom Forms</h1>
-        <div>
-          <span>{displayName ?? email}</span>{" "}
-          <button onClick={() => logout()}>Sign out</button>
+    <div className="app-shell">
+      <AppTopbar />
+
+      <div className="page page--wide">
+        <div className="dashboard-toolbar">
+          <button className="btn-primary" onClick={handleCreate} disabled={creating}>
+            {creating ? "Creating…" : "+ Create a form"}
+          </button>
+          <Link className="toolbar-link" to="/admin/connectors">
+            🔌 Data source connectors
+          </Link>
+          <Link className="toolbar-link" to="/admin/sync-health">
+            🩺 Sync health
+          </Link>
         </div>
-      </header>
 
-      <button onClick={handleCreate} disabled={creating}>
-        {creating ? "Creating…" : "+ Create a form"}
-      </button>{" "}
-      <Link to="/admin/connectors">Data source connectors</Link>
-      {" · "}
-      <Link to="/admin/sync-health">Sync health</Link>
+        {error && <p className="error-text">{error}</p>}
 
-      {error && <p className="error-text">{error}</p>}
-
-      {loading ? (
-        <p>Loading your forms…</p>
-      ) : forms.length === 0 ? (
-        <p>No forms yet — create your first one above.</p>
-      ) : (
-        <ul className="form-list">
-          {forms.map(({ form }) => (
-            <li key={form.id}>
-              <Link to={`/builder/${form.id}`}>{form.title}</Link>{" "}
-              <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
-              {form.status === "published" && (
-                <>
-                  {" · "}
-                  <Link to={`/admin/forms/${form.id}/responses`}>Responses</Link>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+        {loading ? (
+          <p>Loading your forms…</p>
+        ) : forms.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state__icon">📝</div>
+            <h2>No forms yet</h2>
+            <p>Create your first form — add fields, wire up auto-fill, and publish a shareable link.</p>
+            <button className="btn-primary" onClick={handleCreate} disabled={creating}>
+              {creating ? "Creating…" : "+ Create a form"}
+            </button>
+          </div>
+        ) : (
+          <div className="form-grid">
+            {forms.map(({ form }) => (
+              <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
+                <div className="form-card__header">
+                  <span className="form-card__title">{form.title || "Untitled form"}</span>
+                  <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
+                </div>
+                {form.description && <p className="form-card__description">{form.description}</p>}
+                <p className="form-card__meta">Updated {new Date(form.updatedAt).toLocaleDateString()}</p>
+                {form.status === "published" && (
+                  <span
+                    className="form-card__responses"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(`/admin/forms/${form.id}/responses`);
+                    }}
+                  >
+                    View responses →
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

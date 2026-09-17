@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import { AppTopbar } from "../../components/layout/AppTopbar";
 import {
   createConnectorConfig,
   deleteConnectorConfig,
@@ -86,10 +86,9 @@ export function ConnectorsPage() {
   }
 
   return (
-    <div className="page page--wide">
-      <p>
-        <Link to="/">← Back to my forms</Link>
-      </p>
+    <div className="app-shell">
+      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <div className="page page--wide">
       <h1>Data source connectors</h1>
       <p>
         Reusable data sources form fields can auto-fill from — Graph directory data, a shared
@@ -167,6 +166,7 @@ export function ConnectorsPage() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );

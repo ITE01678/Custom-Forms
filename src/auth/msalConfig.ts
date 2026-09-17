@@ -34,6 +34,20 @@ export const msalConfig: Configuration = {
     authority: `https://login.microsoftonline.com/${tenantId ?? "common"}`,
     redirectUri,
     postLogoutRedirectUri: redirectUri,
+    // This app uses HashRouter (client-side routes live in the URL hash:
+    // #/builder/..., #/f/...). MSAL's default redirect response mode also
+    // uses the URL hash (#code=...&state=...) for the response Azure AD sends
+    // back, which collides with HashRouter's own use of the hash for routing.
+    // This is the ONLY place that actually controls it — MSAL-browser's
+    // RedirectRequest type deliberately omits a per-request `responseMode`
+    // (verified in node_modules/@azure/msal-browser/types/request/RedirectRequest.d.ts),
+    // so setting it on loginRequest instead (an earlier attempt at this fix)
+    // silently did nothing. This config field is what both (a) tells Azure AD
+    // to send the response as ?code=... instead of #code=..., and (b) tells
+    // handleRedirectPromise() to read it back from location.search instead of
+    // location.hash. Both sides have to agree, and this is the only knob that
+    // affects both.
+    OIDCOptions: { responseMode: "query" },
   },
   cache: {
     // localStorage (not sessionStorage) so a refresh/new tab doesn't force re-login.
@@ -72,13 +86,9 @@ export const msalConfig: Configuration = {
  */
 export const loginRequest = {
   scopes: ["openid", "profile", "email", "User.Read", "User.Read.All", "Sites.ReadWrite.All"],
-  // This app uses HashRouter (client-side routes live in the URL hash:
-  // #/builder/..., #/f/...). MSAL's default redirect response mode also uses
-  // the URL hash (#code=...&state=...) — the two collide/race, which can
-  // manifest as the page bouncing between screens right after login. Forcing
-  // the auth response into the query string instead avoids the collision
-  // entirely, since HashRouter never looks at location.search.
-  responseMode: "query" as const,
+  // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
+  // above. RedirectRequest's type omits a per-request responseMode field entirely,
+  // so it has no effect here regardless of what's passed.
 };
 
 export const graphScopes = {

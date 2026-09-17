@@ -13,6 +13,28 @@ export function getRedirectError(): Error | null {
   return redirectError;
 }
 
+const AUTH_RESPONSE_PARAMS = ["code", "state", "session_state", "client_info", "error", "error_description"];
+
+/**
+ * MSAL's own post-redirect cleanup (clearHash) only strips the URL *hash* —
+ * it was written assuming fragment-mode responses, where the whole response
+ * lives in the hash. With responseMode "query" (see msalConfig.ts), the
+ * response instead lands in the query string, which clearHash never touches,
+ * so ?code=...&state=... is otherwise left sitting in the address bar even
+ * after a fully successful login. Strip just those params ourselves,
+ * preserving the hash (HashRouter's current route) and any unrelated query params.
+ */
+function stripAuthResponseFromQuery(): void {
+  const params = new URLSearchParams(window.location.search);
+  const hadAuthParams = AUTH_RESPONSE_PARAMS.some((key) => params.has(key));
+  if (!hadAuthParams) return;
+
+  AUTH_RESPONSE_PARAMS.forEach((key) => params.delete(key));
+  const query = params.toString();
+  const cleanUrl = `${window.location.origin}${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  window.history.replaceState(null, "", cleanUrl);
+}
+
 // MSAL v3 requires explicit initialization before use.
 export const msalInitPromise = msalInstance.initialize().then(async () => {
   // Pick up the account from any redirect-based login that just completed.
@@ -27,5 +49,7 @@ export const msalInitPromise = msalInstance.initialize().then(async () => {
     }
   } catch (err) {
     redirectError = err instanceof Error ? err : new Error(String(err));
+  } finally {
+    stripAuthResponseFromQuery();
   }
 });

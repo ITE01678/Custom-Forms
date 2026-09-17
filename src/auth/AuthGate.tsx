@@ -1,23 +1,68 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "./useAuth";
+import { getRedirectError } from "./msalInstance";
+
+const ATTEMPTED_KEY = "customForms.authRedirectAttempted";
 
 /**
  * Route guard: requires a signed-in @<allowed-domain> account.
- *  - Not signed in                 -> triggers login redirect.
- *  - Signed in, wrong domain       -> blocked with an explicit message
- *                                      (defense-in-depth alongside restricting
- *                                      the Enterprise Application's assignment
- *                                      to an internal security group in Azure).
- *  - Signed in, allowed domain     -> renders children.
+ *  - Not signed in, first attempt this session -> triggers login redirect once.
+ *  - Not signed in, already attempted           -> shows an error instead of
+ *                                                   silently retrying forever
+ *                                                   (this used to loop —
+ *                                                   see msalInstance.ts).
+ *  - Signed in, wrong domain                     -> blocked with an explicit
+ *                                                   message (defense-in-depth
+ *                                                   alongside restricting the
+ *                                                   Enterprise Application's
+ *                                                   assignment to a security
+ *                                                   group in Azure).
+ *  - Signed in, allowed domain                   -> renders children.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, isAllowedDomain, email, login, logout } = useAuth();
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      login();
+    if (isAuthenticated) {
+      sessionStorage.removeItem(ATTEMPTED_KEY);
+      return;
     }
+
+    const redirectError = getRedirectError();
+    if (redirectError) {
+      setAuthError(redirectError.message);
+      return;
+    }
+
+    if (sessionStorage.getItem(ATTEMPTED_KEY) === "1") {
+      // We already tried once this session and came back still unauthenticated,
+      // with no specific MSAL error caught — auto-retrying would just loop.
+      setAuthError("Sign-in didn't complete. This can happen if the sign-in was cancelled or timed out.");
+      return;
+    }
+
+    sessionStorage.setItem(ATTEMPTED_KEY, "1");
+    login();
   }, [isAuthenticated, login]);
+
+  function retry() {
+    sessionStorage.removeItem(ATTEMPTED_KEY);
+    setAuthError(null);
+    login();
+  }
+
+  if (authError) {
+    return (
+      <div className="page page--centered">
+        <h1>Sign-in problem</h1>
+        <p className="error-text">{authError}</p>
+        <button className="btn-primary" onClick={retry}>
+          Try signing in again
+        </button>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <p>Redirecting to sign-in…</p>;
@@ -25,7 +70,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!isAllowedDomain) {
     return (
-      <div role="alert">
+      <div className="page page--centered" role="alert">
         <p>
           The account <strong>{email}</strong> is not part of this organization. Sign in
           with your official Microsoft 365 account to continue.

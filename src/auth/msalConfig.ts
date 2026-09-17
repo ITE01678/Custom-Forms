@@ -72,6 +72,13 @@ export const msalConfig: Configuration = {
  */
 export const loginRequest = {
   scopes: ["openid", "profile", "email", "User.Read", "User.Read.All", "Sites.ReadWrite.All"],
+  // This app uses HashRouter (client-side routes live in the URL hash:
+  // #/builder/..., #/f/...). MSAL's default redirect response mode also uses
+  // the URL hash (#code=...&state=...) — the two collide/race, which can
+  // manifest as the page bouncing between screens right after login. Forcing
+  // the auth response into the query string instead avoids the collision
+  // entirely, since HashRouter never looks at location.search.
+  responseMode: "query" as const,
 };
 
 export const graphScopes = {

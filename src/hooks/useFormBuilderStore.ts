@@ -5,6 +5,7 @@ import type { StoredForm } from "../services/forms";
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   shortText: "Short answer",
   longText: "Long answer",
+  email: "Email",
   singleChoice: "Choice (single)",
   multiChoice: "Choice (multiple)",
   date: "Date",
@@ -26,6 +27,9 @@ function newField(type: FieldType, order: number): FormField {
     fillMode: "manual",
     validation: { required: false },
   };
+  if (type === "email") {
+    base.validation = { required: false, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" };
+  }
   if (type === "singleChoice" || type === "multiChoice") {
     base.options = [
       { value: "option-1", label: "Option 1" },

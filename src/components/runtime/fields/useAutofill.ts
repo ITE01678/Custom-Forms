@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMyProfileCached } from "../../../services/profileCache";
+import { getManager } from "../../../services/users";
 import { getConnectorConfigById } from "../../../services/connectorConfigs";
 import { getConnector } from "../../../services/connectors/registry";
 import { registerBuiltinConnectors } from "../../../services/connectors";
@@ -39,8 +40,13 @@ export function useAutofill(
 
     try {
       if (field.fillMode === "graph-autofill" && field.graphAutofill) {
-        const profile = await getMyProfileCached();
-        const value = (profile as unknown as Record<string, unknown>)[field.graphAutofill.graphProperty] ?? null;
+        const profile =
+          field.graphAutofill.source === "self-manager" ? await getManager(respondentEmail) : await getMyProfileCached();
+        const raw = (profile as unknown as Record<string, unknown>)[field.graphAutofill.graphProperty] ?? null;
+        // businessPhones (and any future array-valued profile property) —
+        // flatten to its first entry so scalar fields (a plain text input)
+        // have something sensible to display/store.
+        const value = Array.isArray(raw) ? raw[0] ?? null : raw;
         setState({ status: value === null || value === "" ? "empty" : "resolved", rows: [{ value }] });
         return;
       }

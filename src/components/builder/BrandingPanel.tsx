@@ -1,5 +1,6 @@
 import type { BrandingConfig, FormDefinition } from "../../formsSchema/types";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
+import { MediaUploadField } from "./MediaUploadField";
 
 interface Props {
   form: FormDefinition;
@@ -26,6 +27,12 @@ export function BrandingPanel({ form }: Props) {
   function setConfirmation(updates: Partial<BrandingConfig["confirmation"]>) {
     setBranding({ confirmation: { ...form.branding.confirmation, ...updates } });
   }
+
+  function setBackground(updates: Partial<NonNullable<BrandingConfig["background"]>>) {
+    setBranding({ background: { type: "default", ...form.branding.background, ...updates } });
+  }
+
+  const backgroundType = form.branding.background?.type ?? "default";
 
   return (
     <div className="panel">
@@ -54,26 +61,73 @@ export function BrandingPanel({ form }: Props) {
       </div>
 
       <h3>Logo &amp; header image</h3>
+      <MediaUploadField
+        formId={form.id}
+        kind="logo"
+        label="Logo"
+        value={form.branding.logoUrl}
+        onChange={(url) => setBranding({ logoUrl: url })}
+      />
+      <MediaUploadField
+        formId={form.id}
+        kind="header"
+        label="Header/cover image"
+        value={form.branding.headerImageUrl}
+        onChange={(url) => setBranding({ headerImageUrl: url })}
+      />
+
+      <h3>Form background</h3>
       <div className="field-row">
-        <label htmlFor="logo-url">Logo URL</label>
-        <input
-          id="logo-url"
-          type="url"
-          value={form.branding.logoUrl ?? ""}
-          onChange={(e) => setBranding({ logoUrl: e.target.value })}
-          placeholder="https://…"
-        />
+        <label>
+          <input
+            type="radio"
+            name="background-type"
+            checked={backgroundType === "default"}
+            onChange={() => setBackground({ type: "default" })}
+          />{" "}
+          Default
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="background-type"
+            checked={backgroundType === "color"}
+            onChange={() => setBackground({ type: "color" })}
+          />{" "}
+          Solid color
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="background-type"
+            checked={backgroundType === "image"}
+            onChange={() => setBackground({ type: "image" })}
+          />{" "}
+          Image
+        </label>
       </div>
-      <div className="field-row">
-        <label htmlFor="header-url">Header/cover image URL</label>
-        <input
-          id="header-url"
-          type="url"
-          value={form.branding.headerImageUrl ?? ""}
-          onChange={(e) => setBranding({ headerImageUrl: e.target.value })}
-          placeholder="https://…"
+
+      {backgroundType === "color" && (
+        <div className="field-row">
+          <label htmlFor="background-color">Background color</label>
+          <input
+            id="background-color"
+            type="color"
+            value={form.branding.background?.color ?? "#f8fafc"}
+            onChange={(e) => setBackground({ color: e.target.value })}
+          />
+        </div>
+      )}
+
+      {backgroundType === "image" && (
+        <MediaUploadField
+          formId={form.id}
+          kind="background"
+          label="Background image"
+          value={form.branding.background?.imageUrl}
+          onChange={(url) => setBackground({ imageUrl: url })}
         />
-      </div>
+      )}
 
       <h3>Submit &amp; confirmation</h3>
       <div className="field-row">

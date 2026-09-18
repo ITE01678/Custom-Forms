@@ -17,7 +17,12 @@ export type Operator =
   | "isEmpty"
   | "isNotEmpty"
   | "in"
-  | "notIn";
+  | "notIn"
+  | "lengthEq"
+  | "lengthGt"
+  | "lengthGte"
+  | "lengthLt"
+  | "lengthLte";
 
 export interface Predicate {
   field: string; // fieldId
@@ -59,6 +64,16 @@ export function evaluatePredicate(predicate: Predicate, actual: unknown): boolea
       return Array.isArray(value) && typeof actual === "string" && value.includes(actual);
     case "notIn":
       return Array.isArray(value) && typeof actual === "string" && !value.includes(actual);
+    case "lengthEq":
+      return typeof actual === "string" && typeof value === "number" && actual.length === value;
+    case "lengthGt":
+      return typeof actual === "string" && typeof value === "number" && actual.length > value;
+    case "lengthGte":
+      return typeof actual === "string" && typeof value === "number" && actual.length >= value;
+    case "lengthLt":
+      return typeof actual === "string" && typeof value === "number" && actual.length < value;
+    case "lengthLte":
+      return typeof actual === "string" && typeof value === "number" && actual.length <= value;
     default:
       return false;
   }

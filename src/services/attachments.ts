@@ -48,3 +48,23 @@ export async function deleteAttachment(formId: string, responseId: string, field
   const path = attachmentPath(formId, responseId, fieldId, filename);
   await graphFetch(`/drives/${driveId}/root:/${path}`, { method: "DELETE", scopes: graphScopes.sites });
 }
+
+/**
+ * Uploads a builder-time media asset (logo, header image, background image)
+ * into the same "Attachments" library, under `branding/{formId}/{kind}/`
+ * rather than a response folder — these belong to the form definition, not
+ * any one response. Returns the file's webUrl for storing directly in
+ * BrandingConfig.
+ */
+export async function uploadBrandingAsset(formId: string, kind: string, file: File): Promise<FileAttachment> {
+  const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.attachments);
+  const path = `branding/${formId}/${kind}/${sanitizeFilename(file.name)}`;
+  const bytes = await file.arrayBuffer();
+
+  const result = await graphUploadBinary<DriveItemUploadResult>(`/drives/${driveId}/root:/${path}:/content`, bytes, {
+    contentType: file.type || "application/octet-stream",
+    scopes: graphScopes.sites,
+  });
+
+  return { name: file.name, url: result.webUrl, size: result.size };
+}

@@ -68,6 +68,7 @@ export interface FormSection {
 export type FieldType =
   | "shortText"
   | "longText"
+  | "email"
   | "singleChoice"
   | "multiChoice"
   | "date"
@@ -99,8 +100,16 @@ export interface FieldValidation {
 }
 
 export interface GraphAutofillConfig {
-  source: "self-profile";
-  graphProperty: "department" | "employeeId" | "jobTitle" | "displayName" | "mail" | string;
+  /** "self-profile" reads the signed-in respondent's own Entra profile;
+   *  "self-manager" reads their manager's profile instead (e.g. auto-fill an
+   *  approver's name/email) — both use the same already-granted
+   *  User.Read/User.Read.All scopes, no extra permission needed. */
+  source: "self-profile" | "self-manager";
+  /** A property name off services/users.ts's EntraProfile (department,
+   *  mobilePhone, city, ...) — kept as `string` here since formsSchema is
+   *  framework/service-agnostic; the concrete key list lives in the builder
+   *  UI and useAutofill, not in this type. */
+  graphProperty: string;
   refreshOnLoad?: boolean;
   /** Lets the respondent flip this field to manual entry instead of trusting
    *  the auto-filled value — on by default. */
@@ -159,6 +168,11 @@ export interface BrandingConfig {
   logoUrl?: string;
   headerImageUrl?: string;
   themeColor?: string; // hex
+  background?: {
+    type: "default" | "color" | "image";
+    color?: string; // hex, used when type === "color"
+    imageUrl?: string; // used when type === "image"
+  };
   submitButtonText?: string; // default "Submit"
   confirmation: { mode: "message" | "redirect"; message?: string; redirectUrl?: string };
 }

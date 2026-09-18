@@ -30,18 +30,37 @@ function toNode(state: FlatState): ConditionNode | undefined {
   return state.combinator === "and" ? { and: state.predicates } : { or: state.predicates };
 }
 
+const TEXT_LENGTH_OPERATORS: { value: Operator; label: string }[] = [
+  { value: "lengthEq", label: "length =" },
+  { value: "lengthGt", label: "length >" },
+  { value: "lengthGte", label: "length ≥" },
+  { value: "lengthLt", label: "length <" },
+  { value: "lengthLte", label: "length ≤" },
+];
+
 const OPERATORS_BY_TYPE: Record<FieldType, { value: Operator; label: string }[]> = {
   shortText: [
     { value: "eq", label: "is" },
     { value: "neq", label: "is not" },
     { value: "contains", label: "contains" },
     { value: "notContains", label: "doesn't contain" },
+    ...TEXT_LENGTH_OPERATORS,
     { value: "isEmpty", label: "is empty" },
     { value: "isNotEmpty", label: "is not empty" },
   ],
   longText: [
     { value: "contains", label: "contains" },
     { value: "notContains", label: "doesn't contain" },
+    ...TEXT_LENGTH_OPERATORS,
+    { value: "isEmpty", label: "is empty" },
+    { value: "isNotEmpty", label: "is not empty" },
+  ],
+  email: [
+    { value: "eq", label: "is" },
+    { value: "neq", label: "is not" },
+    { value: "contains", label: "contains" },
+    { value: "notContains", label: "doesn't contain" },
+    ...TEXT_LENGTH_OPERATORS,
     { value: "isEmpty", label: "is empty" },
     { value: "isNotEmpty", label: "is not empty" },
   ],
@@ -146,6 +165,7 @@ export function ConditionBuilder({ condition, availableFields, onChange }: Props
         const field = availableFields.find((f) => f.id === predicate.field) ?? availableFields[0];
         const operators = OPERATORS_BY_TYPE[field.type] ?? OPERATORS_BY_TYPE.shortText;
         const needsValue = !NO_VALUE_OPERATORS.has(predicate.operator);
+        const isLengthOperator = predicate.operator.startsWith("length");
 
         return (
           <div className="condition-row" key={i}>
@@ -176,7 +196,14 @@ export function ConditionBuilder({ condition, availableFields, onChange }: Props
             </select>
 
             {needsValue &&
-              (field.type === "singleChoice" || field.type === "multiChoice" ? (
+              (isLengthOperator ? (
+                <input
+                  type="number"
+                  min={0}
+                  value={typeof predicate.value === "number" ? predicate.value : ""}
+                  onChange={(e) => updatePredicate(i, { value: e.target.value === "" ? undefined : Number(e.target.value) })}
+                />
+              ) : field.type === "singleChoice" || field.type === "multiChoice" ? (
                 <select
                   value={typeof predicate.value === "string" ? predicate.value : ""}
                   onChange={(e) => updatePredicate(i, { value: e.target.value })}

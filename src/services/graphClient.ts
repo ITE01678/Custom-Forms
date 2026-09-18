@@ -118,6 +118,19 @@ export async function graphFetch<T>(path: string, opts: GraphRequestOptions = {}
 
     if (res.status === 403) {
       const bodyText = await res.text();
+      // "Could not obtain a WAC access token" is Graph's Excel/Workbook API
+      // (backed by Office Online Server, aka WAC) failing to establish an
+      // editing session — NOT a real permission denial. It reliably fires on
+      // the FIRST /workbook/... call against a file that was uploaded only
+      // moments earlier (Office Online hasn't finished indexing the new file
+      // yet) and clears itself on retry a few seconds later. Treat it like
+      // 429/503: back off and retry, rather than surfacing it as a
+      // GraphPermissionError the caller can't do anything about.
+      if (/could not obtain a wac access token/i.test(bodyText)) {
+        if (attempt === maxRetries) throw new GraphError(503, path, bodyText);
+        await sleep(2000 * (attempt + 1) + jitter(500));
+        continue;
+      }
       if (/premium|license/i.test(bodyText)) {
         throw new GraphPremiumRequiredError(path, bodyText);
       }

@@ -8,14 +8,44 @@ export interface EntraProfile {
   mail: string | null;
   userPrincipalName: string;
   displayName: string;
+  givenName: string | null;
+  surname: string | null;
   department: string | null;
   jobTitle: string | null;
   employeeId: string | null;
   officeLocation: string | null;
+  mobilePhone: string | null;
+  businessPhones: string[];
+  city: string | null;
+  country: string | null;
+  postalCode: string | null;
+  streetAddress: string | null;
+  companyName: string | null;
+  preferredLanguage: string | null;
+  usageLocation: string | null;
 }
 
-const PROFILE_SELECT =
-  "id,mail,userPrincipalName,displayName,department,jobTitle,employeeId,officeLocation";
+const PROFILE_SELECT = [
+  "id",
+  "mail",
+  "userPrincipalName",
+  "displayName",
+  "givenName",
+  "surname",
+  "department",
+  "jobTitle",
+  "employeeId",
+  "officeLocation",
+  "mobilePhone",
+  "businessPhones",
+  "city",
+  "country",
+  "postalCode",
+  "streetAddress",
+  "companyName",
+  "preferredLanguage",
+  "usageLocation",
+].join(",");
 
 /** The signed-in user's own profile — only needs the base User.Read scope. */
 export function getMyProfile(): Promise<EntraProfile> {

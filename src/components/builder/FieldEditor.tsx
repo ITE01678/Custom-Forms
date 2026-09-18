@@ -16,7 +16,7 @@ interface Props {
 }
 
 const CHOICE_TYPES = new Set(["singleChoice", "multiChoice"]);
-const TEXT_TYPES = new Set(["shortText", "longText"]);
+const TEXT_TYPES = new Set(["shortText", "longText", "email"]);
 
 const PATTERN_PRESETS: { label: string; pattern?: string }[] = [
   { label: "No format restriction" },
@@ -26,12 +26,24 @@ const PATTERN_PRESETS: { label: string; pattern?: string }[] = [
 ];
 
 const GRAPH_PROPERTIES: { value: string; label: string }[] = [
+  { value: "displayName", label: "Full name" },
+  { value: "givenName", label: "First name" },
+  { value: "surname", label: "Last name" },
+  { value: "mail", label: "Email" },
+  { value: "userPrincipalName", label: "User principal name" },
   { value: "department", label: "Department" },
   { value: "employeeId", label: "Employee ID" },
   { value: "jobTitle", label: "Job title" },
-  { value: "displayName", label: "Full name" },
-  { value: "mail", label: "Email" },
+  { value: "companyName", label: "Company name" },
   { value: "officeLocation", label: "Office location" },
+  { value: "mobilePhone", label: "Mobile phone" },
+  { value: "businessPhones", label: "Business phone" },
+  { value: "city", label: "City" },
+  { value: "country", label: "Country" },
+  { value: "postalCode", label: "Postal code" },
+  { value: "streetAddress", label: "Street address" },
+  { value: "preferredLanguage", label: "Preferred language" },
+  { value: "usageLocation", label: "Usage location" },
 ];
 
 export function FieldEditor({ sectionId, field, isFirst, isLast, connectorOptions }: Props) {
@@ -289,13 +301,26 @@ export function FieldEditor({ sectionId, field, isFirst, isLast, connectorOption
       {field.fillMode === "graph-autofill" && (
         <div className="field-editor__validation-row">
           <label>
+            Whose profile{" "}
+            <select
+              value={field.graphAutofill?.source ?? "self-profile"}
+              onChange={(e) =>
+                field.graphAutofill &&
+                set({ graphAutofill: { ...field.graphAutofill, source: e.target.value as "self-profile" | "self-manager" } })
+              }
+            >
+              <option value="self-profile">The respondent themselves</option>
+              <option value="self-manager">The respondent's manager</option>
+            </select>
+          </label>
+          <label>
             Profile property{" "}
             <select
               value={field.graphAutofill?.graphProperty ?? "department"}
               onChange={(e) =>
                 set({
                   graphAutofill: {
-                    source: "self-profile",
+                    source: field.graphAutofill?.source ?? "self-profile",
                     graphProperty: e.target.value,
                     allowManualOverride: field.graphAutofill?.allowManualOverride,
                   },

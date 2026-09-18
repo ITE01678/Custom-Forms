@@ -229,20 +229,6 @@ function renderField(
   const error = errors.find((e) => e.fieldId === field.id)?.message;
   const onChange = (v: AnswerValue) => setAnswer(field.id, v);
 
-  if (field.type === "fileUpload") {
-    return (
-      <FileUploadField
-        key={field.id}
-        field={field}
-        formId={formId}
-        responseId={responseId}
-        value={answers[field.id] ?? null}
-        onChange={onChange}
-        error={error}
-      />
-    );
-  }
-
   if (field.type === "repeatingTable") {
     return (
       <ConnectorTableField
@@ -256,6 +242,11 @@ function renderField(
     );
   }
 
+  // Checked BEFORE the fileUpload branch below: a fileUpload field can also
+  // be configured with fillMode "graph-autofill"/"connector-autofill" (e.g.
+  // auto-attach a reference document resolved by lookup key) — dispatching
+  // on field.type first would silently ignore that config and always show
+  // the plain manual uploader.
   if (field.fillMode !== "manual") {
     return (
       <AutofillField
@@ -263,6 +254,22 @@ function renderField(
         field={field}
         respondentEmail={respondentEmail}
         priorAnswers={answers}
+        formId={formId}
+        responseId={responseId}
+        onChange={onChange}
+        error={error}
+      />
+    );
+  }
+
+  if (field.type === "fileUpload") {
+    return (
+      <FileUploadField
+        key={field.id}
+        field={field}
+        formId={formId}
+        responseId={responseId}
+        value={answers[field.id] ?? null}
         onChange={onChange}
         error={error}
       />

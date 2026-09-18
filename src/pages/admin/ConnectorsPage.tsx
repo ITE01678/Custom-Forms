@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { ConnectorSourcePicker } from "../../components/admin/ConnectorSourcePicker";
 import {
   createConnectorConfig,
   deleteConnectorConfig,
@@ -120,14 +121,20 @@ export function ConnectorsPage() {
             ))}
           </select>
         </div>
-        <div className="field-row">
-          <label>Config (JSON)</label>
+        {(type === "excel-lookup" || type === "sharepoint-list-query") && (
+          <ConnectorSourcePicker
+            type={type}
+            onConfigChange={(config) => setConfigJson(JSON.stringify(config, null, 2))}
+          />
+        )}
+        <details className="connector-json-advanced">
+          <summary>{type === "excel-lookup" || type === "sharepoint-list-query" ? "Advanced: edit config JSON directly" : "Config (JSON)"}</summary>
           <textarea
             style={{ minHeight: "8rem", fontFamily: "monospace" }}
             value={configJson}
             onChange={(e) => setConfigJson(e.target.value)}
           />
-        </div>
+        </details>
         {error && <p className="error-text">{error}</p>}
         <button className="btn-primary" onClick={handleCreate} disabled={saving || !name.trim()}>
           {saving ? "Saving…" : "Add connector"}

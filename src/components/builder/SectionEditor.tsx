@@ -12,6 +12,7 @@ interface Props {
 const ADDABLE_FIELD_TYPES: FieldType[] = [
   "shortText",
   "longText",
+  "email",
   "singleChoice",
   "multiChoice",
   "date",

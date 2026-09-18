@@ -13,7 +13,16 @@ interface Props {
 /** The themed "card on a soft gradient" chrome shared by the live fill-out
  *  runtime and the builder's Preview mode, so the two never visually drift. */
 export function RuntimeShell({ title, description, branding, children }: Props) {
-  const themeStyle = { "--accent": branding.themeColor || DEFAULT_ACCENT } as CSSProperties;
+  const bg = branding.background;
+  const themeStyle: CSSProperties = { "--accent": branding.themeColor || DEFAULT_ACCENT } as CSSProperties;
+  if (bg?.type === "color" && bg.color) {
+    themeStyle.background = bg.color;
+  } else if (bg?.type === "image" && bg.imageUrl) {
+    themeStyle.backgroundImage = `url(${bg.imageUrl})`;
+    themeStyle.backgroundSize = "cover";
+    themeStyle.backgroundPosition = "center";
+    themeStyle.backgroundAttachment = "fixed";
+  }
 
   return (
     <div className="runtime" style={themeStyle}>

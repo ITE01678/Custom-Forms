@@ -30,7 +30,8 @@ export function FieldRenderer({ field, value, onChange, error }: Props) {
   );
 
   const maxLength = field.validation?.maxLength;
-  const showCounter = maxLength !== undefined && (field.type === "shortText" || field.type === "longText");
+  const showCounter =
+    maxLength !== undefined && (field.type === "shortText" || field.type === "longText" || field.type === "email");
 
   return (
     <div className="fill-field">
@@ -63,6 +64,18 @@ function renderInput(
           id={field.id}
           className="fill-field__input"
           type="text"
+          maxLength={field.validation?.maxLength}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
+
+    case "email":
+      return (
+        <input
+          id={field.id}
+          className="fill-field__input"
+          type="email"
           maxLength={field.validation?.maxLength}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}

@@ -157,7 +157,7 @@ export async function graphFetch<T>(path: string, opts: GraphRequestOptions = {}
 export async function graphUploadBinary<T = unknown>(
   path: string,
   bytes: ArrayBuffer,
-  opts: { contentType?: string; scopes?: string[]; retries?: number } = {}
+  opts: { contentType?: string; scopes?: string[]; retries?: number; headers?: Record<string, string> } = {}
 ): Promise<T> {
   const scopes = opts.scopes ?? ["Sites.Manage.All"];
   const maxRetries = opts.retries ?? 3;
@@ -170,6 +170,7 @@ export async function graphUploadBinary<T = unknown>(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": opts.contentType ?? "application/octet-stream",
+        ...opts.headers,
       },
       body: bytes,
     });
@@ -180,6 +181,9 @@ export async function graphUploadBinary<T = unknown>(
       await sleep(retryAfterSec * 1000 + jitter(250));
       continue;
     }
+    // 412 (If-Match failed — someone else wrote the file first) is a
+    // caller-handled conflict, not a retryable transient error — surface it
+    // immediately so the caller can re-download and reapply its change.
     if (!res.ok) throw new GraphError(res.status, path, await res.text());
     return (res.status === 204 ? undefined : await res.json()) as T;
   }

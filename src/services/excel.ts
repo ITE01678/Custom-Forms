@@ -1,4 +1,5 @@
-import { graphFetch, graphUploadBinary } from "./graphClient";
+import * as XLSX from "xlsx";
+import { graphFetch, graphFetchBinary, graphUploadBinary } from "./graphClient";
 import { GraphError } from "./graphErrors";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { LIBRARY_NAMES } from "./bootstrap";
@@ -12,6 +13,22 @@ import type {
   RepeatingTableValue,
 } from "../formsSchema/types";
 
+/**
+ * Response workbooks are read/written as PLAIN FILE BYTES via a normal
+ * driveItem `/content` GET+PUT — never through Graph's Excel Workbook REST
+ * API (`/workbook/...`). That API is backed by Office Online Server ("WAC")
+ * and, in this tenant, cannot negotiate a session for ANY operation against
+ * this data — proven by the fact that even an explicit
+ * `/workbook/createSession` call (the strongest form of the API) fails
+ * identically to every stateless call that was tried before it. Content
+ * GET/PUT has no such dependency (confirmed working throughout this app for
+ * template uploads, attachments, and form-version snapshots), so this
+ * downloads the file, parses/mutates it with a client-side spreadsheet
+ * library (SheetJS), and re-uploads it — with an ETag-conditioned PUT
+ * (`If-Match`) and retry-on-conflict so two people editing/submitting at
+ * once can't silently clobber each other.
+ */
+
 /** Must match scripts/generate-response-template.mjs's META_COLUMNS. */
 export const META_COLUMNS = [
   "ResponseId",
@@ -22,8 +39,6 @@ export const META_COLUMNS = [
   "EditCount",
   "Status",
 ] as const;
-
-const TABLE = "Responses";
 
 function workbookPath(formId: string): string {
   return `${formId}.xlsx`;
@@ -109,7 +124,7 @@ async function getTemplateBytes(): Promise<ArrayBuffer> {
 async function workbookExists(driveId: string, formId: string): Promise<boolean> {
   try {
     await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}?$select=id`, {
-      scopes: graphScopes.excel,
+      scopes: graphScopes.sites,
     });
     return true;
   } catch (err) {
@@ -118,80 +133,103 @@ async function workbookExists(driveId: string, formId: string): Promise<boolean>
   }
 }
 
-/**
- * Explicit Excel workbook session — Graph's stateless (no session) mode for
- * `/workbook/...` calls occasionally never negotiates the underlying Office
- * Online ("WAC") session at all for a file that was PUT-uploaded rather than
- * created/opened through Excel Online itself, surfacing as a persistent
- * (not just transient) "Could not obtain a WAC access token" error on every
- * subsequent stateless call — reads and writes alike. Explicitly creating a
- * session forces that negotiation once, up front, and the returned id is
- * then attached to every call made against that file for the life of this
- * one logical operation (one append, one edit, one full-table read, or the
- * whole column-setup loop at publish time).
- */
-async function createWorkbookSession(driveId: string, itemPath: string): Promise<string> {
-  const result = await graphFetch<{ id: string }>(`/drives/${driveId}/root:/${itemPath}:/workbook/createSession`, {
-    method: "POST",
-    body: { persistChanges: true },
-    scopes: graphScopes.excel,
+async function getItemETag(driveId: string, itemPath: string): Promise<string> {
+  const item = await graphFetch<{ eTag: string }>(`/drives/${driveId}/root:/${itemPath}?$select=eTag`, {
+    scopes: graphScopes.sites,
   });
-  return result.id;
+  return item.eTag;
 }
 
-async function withWorkbookSession<T>(
+type Row = (string | number | boolean)[];
+
+async function readWorkbookRows(driveId: string, itemPath: string): Promise<Row[]> {
+  const blob = await graphFetchBinary(`/drives/${driveId}/root:/${itemPath}:/content`, {
+    scopes: graphScopes.sites,
+  });
+  const bytes = await blob.arrayBuffer();
+  const workbook = XLSX.read(new Uint8Array(bytes), { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: "" });
+}
+
+async function writeWorkbookRows(
   driveId: string,
   itemPath: string,
-  fn: (headers: Record<string, string>) => Promise<T>
-): Promise<T> {
-  const sessionId = await createWorkbookSession(driveId, itemPath);
-  return fn({ "workbook-session-id": sessionId });
+  rows: Row[],
+  ifMatchEtag?: string
+): Promise<void> {
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, "Responses");
+  const out = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array;
+
+  await graphUploadBinary(`/drives/${driveId}/root:/${itemPath}:/content`, out.slice().buffer, {
+    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    scopes: graphScopes.sites,
+    headers: ifMatchEtag ? { "If-Match": ifMatchEtag } : undefined,
+  });
 }
 
-async function addTableColumn(driveId: string, formId: string, name: string, headers: Record<string, string>): Promise<void> {
-  await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}:/workbook/tables('${TABLE}')/columns/add`, {
-    method: "POST",
-    body: { name },
-    scopes: graphScopes.excel,
-    headers,
-  });
+/**
+ * Read-modify-write with optimistic concurrency: downloads the current
+ * rows + ETag, lets `mutate` compute the new rows (and any value it wants
+ * to return to the caller) from them, uploads with `If-Match`, and retries
+ * from a fresh download if another submit/edit won the race (412).
+ */
+async function withOptimisticUpdate<T>(
+  driveId: string,
+  itemPath: string,
+  mutate: (rows: Row[]) => { rows: Row[]; result: T }
+): Promise<T> {
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const [etag, rows] = await Promise.all([getItemETag(driveId, itemPath), readWorkbookRows(driveId, itemPath)]);
+    const { rows: nextRows, result } = mutate(rows);
+    try {
+      await writeWorkbookRows(driveId, itemPath, nextRows, etag);
+      return result;
+    } catch (err) {
+      const isConflict = err instanceof GraphError && err.status === 412;
+      if (!isConflict || attempt === maxAttempts) throw err;
+      // someone else wrote first — loop and reapply `mutate` against the
+      // now-current rows rather than blindly retrying the same write.
+    }
+  }
+  throw new Error("Could not save — too many concurrent edits, please try again.");
 }
 
 /**
  * Creates this form's response workbook (a copy of the blank template,
  * uploaded into the ResponseWorkbooks library) the first time it's needed —
  * normally right after Publish. Idempotent: a no-op if the workbook already
- * exists. Adds one Excel column per form field, in `flattenFields` order,
- * after the template's fixed meta columns.
+ * exists. The header row is the template's fixed meta columns plus one
+ * column per form field, in `flattenFields` order.
  */
 export async function ensureWorkbookForForm(form: FormDefinition): Promise<void> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
   if (await workbookExists(driveId, form.id)) return;
 
-  const bytes = await getTemplateBytes();
-  await graphUploadBinary(`/drives/${driveId}/root:/${workbookPath(form.id)}:/content`, bytes, {
-    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    scopes: graphScopes.excel,
-  });
+  const templateBytes = await getTemplateBytes();
+  const templateWorkbook = XLSX.read(new Uint8Array(templateBytes), { type: "array" });
+  const templateSheet = templateWorkbook.Sheets[templateWorkbook.SheetNames[0]];
+  const templateRows = XLSX.utils.sheet_to_json<Row>(templateSheet, { header: 1, defval: "" });
 
-  await withWorkbookSession(driveId, workbookPath(form.id), async (headers) => {
-    for (const field of flattenFields(form)) {
-      // Column header is the human-readable label for anyone opening the
-      // sheet directly — cosmetic only. Row writes are always positional
-      // (full row array in flattenFields order), so a label collision
-      // doesn't corrupt data, but duplicate labels across fields in one
-      // form should still be avoided in the builder (not yet enforced —
-      // noted as a known gap).
-      await addTableColumn(driveId, form.id, field.label || field.id, headers);
-    }
-  });
+  // Column header is the human-readable label for anyone opening the sheet
+  // directly — cosmetic only. Row writes are always positional (full row
+  // array in flattenFields order), so a label collision doesn't corrupt
+  // data, but duplicate labels across fields in one form should still be
+  // avoided in the builder (not yet enforced — noted as a known gap).
+  const headerRow: Row = [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
+  const rows: Row[] = [headerRow, ...templateRows.slice(1)];
+
+  await writeWorkbookRows(driveId, workbookPath(form.id), rows);
 }
 
 /** Appends one brand-new response as a row. See `updateResponseRow` below
  *  for editing an existing response (index-cache + self-heal strategy). */
 export async function appendResponseRow(form: FormDefinition, response: FormResponse): Promise<void> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
-  const metaValues: (string | number)[] = [
+  const metaValues: Row = [
     response.id,
     response.respondentUpn,
     response.submittedAt ?? "",
@@ -201,35 +239,12 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
     "Submitted",
   ];
   const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
+  const newRow: Row = [...metaValues, ...fieldValues];
 
-  await withWorkbookSession(driveId, workbookPath(form.id), (headers) =>
-    graphFetch(`/drives/${driveId}/root:/${workbookPath(form.id)}:/workbook/tables('${TABLE}')/rows`, {
-      method: "POST",
-      body: { values: [[...metaValues, ...fieldValues]] },
-      scopes: graphScopes.excel,
-      headers,
-    })
-  );
-}
-
-async function getRowAtIndex(
-  driveId: string,
-  formId: string,
-  rowIndex: number,
-  headers: Record<string, string>
-): Promise<unknown[] | null> {
-  try {
-    const result = await graphFetch<{ values: unknown[][] }>(
-      `/drives/${driveId}/root:/${workbookPath(formId)}:/workbook/tables('${TABLE}')/rows/itemAt(index=${rowIndex})?$select=values`,
-      { scopes: graphScopes.excel, headers }
-    );
-    return result.values[0] ?? null;
-  } catch (err) {
-    // itemAt on an out-of-range index errors (400/404 depending on tenant) —
-    // treat any of those as "not there," not a hard failure.
-    if (err instanceof GraphError && (err.status === 400 || err.status === 404)) return null;
-    throw err;
-  }
+  await withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => ({
+    rows: [...rows, newRow],
+    result: undefined,
+  }));
 }
 
 /** Full-table scan for the row whose ResponseId (column 0) matches — the
@@ -243,12 +258,13 @@ export async function findRowIndexByResponseId(form: FormDefinition, responseId:
 }
 
 /**
- * Updates an existing response's row. Graph can only update a table row by
- * index, not by key, so this: (1) reads the cached index, (2) verifies that
- * row's ResponseId still matches, (3) if not, re-locates it via a full scan
- * and corrects the index, then (4) writes the full row (never a partial
- * patch, so meta + field columns stay consistent as one atomic write).
- * Returns the (possibly corrected) row index, for the caller to re-cache.
+ * Updates an existing response's row, addressed by index (0 = the first
+ * data row, after the header). Verifies the cached index still points at
+ * the right ResponseId first; if it doesn't (someone manually sorted/edited
+ * the sheet), re-locates it via a full scan and corrects the index. Writes
+ * the full row (never a partial patch, so meta + field columns stay
+ * consistent as one atomic write). Returns the (possibly corrected) row
+ * index, for the caller to re-cache.
  */
 export async function updateResponseRow(
   form: FormDefinition,
@@ -257,23 +273,24 @@ export async function updateResponseRow(
   editorEmail: string
 ): Promise<number> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
+  const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
 
-  return withWorkbookSession(driveId, workbookPath(form.id), async (headers) => {
+  return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => {
     let rowIndex = cachedRowIndex;
-    let current = await getRowAtIndex(driveId, form.id, rowIndex, headers);
+    let current = rows[rowIndex + 1] as Row | undefined;
     if (!current || current[0] !== response.id) {
-      const found = await findRowIndexByResponseId(form, response.id);
-      if (found === null) {
+      const found = rows.findIndex((r, i) => i > 0 && r[0] === response.id) - 1;
+      if (found < 0) {
         throw new Error(`Response ${response.id} not found in the workbook — cannot update.`);
       }
       rowIndex = found;
-      current = await getRowAtIndex(driveId, form.id, rowIndex, headers);
+      current = rows[rowIndex + 1] as Row | undefined;
     }
 
     const prevEditCount = typeof current?.[5] === "number" ? current[5] : 0;
     const originalSubmittedAt = (current?.[2] as string) || response.submittedAt || "";
 
-    const metaValues: (string | number)[] = [
+    const metaValues: Row = [
       response.id,
       response.respondentUpn,
       originalSubmittedAt,
@@ -282,19 +299,11 @@ export async function updateResponseRow(
       prevEditCount + 1,
       "Edited",
     ];
-    const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
+    const newRow: Row = [...metaValues, ...fieldValues];
 
-    await graphFetch(
-      `/drives/${driveId}/root:/${workbookPath(form.id)}:/workbook/tables('${TABLE}')/rows/itemAt(index=${rowIndex})`,
-      {
-        method: "PATCH",
-        body: { values: [[...metaValues, ...fieldValues]] },
-        scopes: graphScopes.excel,
-        headers,
-      }
-    );
-
-    return rowIndex;
+    const nextRows = [...rows];
+    nextRows[rowIndex + 1] = newRow;
+    return { rows: nextRows, result: rowIndex };
   });
 }
 
@@ -302,9 +311,8 @@ export async function updateResponseRow(
  *  existing-response gate (edit mode) and the admin response detail view. */
 export async function getResponseByRowIndex(form: FormDefinition, rowIndex: number): Promise<FormResponse | null> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
-  const raw = await withWorkbookSession(driveId, workbookPath(form.id), (headers) =>
-    getRowAtIndex(driveId, form.id, rowIndex, headers)
-  );
+  const rows = await readWorkbookRows(driveId, workbookPath(form.id));
+  const raw = rows[rowIndex + 1] as Row | undefined;
   if (!raw) return null;
 
   const fields = flattenFields(form);
@@ -338,13 +346,8 @@ export async function getResponseRows(form: FormDefinition): Promise<ResponseRow
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
   if (!(await workbookExists(driveId, form.id))) return [];
 
-  return withWorkbookSession(driveId, workbookPath(form.id), async (headers) => {
-    const result = await graphFetch<{ value: { values: unknown[][] }[] }>(
-      `/drives/${driveId}/root:/${workbookPath(form.id)}:/workbook/tables('${TABLE}')/rows?$select=values`,
-      { scopes: graphScopes.excel, headers }
-    );
-    return result.value.map((r) => ({ values: r.values[0] as ResponseRow["values"] }));
-  });
+  const rows = await readWorkbookRows(driveId, workbookPath(form.id));
+  return rows.slice(1).map((values) => ({ values }));
 }
 
 export function responseGridColumns(form: FormDefinition): string[] {

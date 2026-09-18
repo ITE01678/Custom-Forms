@@ -23,20 +23,22 @@ Then, on the new registration:
   - `openid`, `profile`, `email`, `User.Read` (sign-in + own profile — no consent needed)
   - `User.Read.All` (read colleagues' department/employeeId/manager/directReports —
     **needs "Grant admin consent" clicked by a tenant admin**, once)
-  - `Sites.Manage.All` (create new Lists/libraries — the app auto-provisions
-    its own structure on first run, which needs the stronger "manage"
-    permission, not just "read/write" — **needs admin consent**, once). A
-    Graph scope is required on the token regardless of the signed-in user's
-    own SharePoint permissions; the scope and the site ACL are two
-    independent checks.
-  - `Sites.ReadWrite.All` (read/write Excel workbooks via Graph's Excel REST
-    API — the `/workbook/...` endpoints go through Office Online Server
-    ("WAC") internally, which does its own separate permission check that
-    `Sites.Manage.All` does NOT satisfy on its own, confirmed by a persistent
-    "Could not obtain a WAC access token" error on every response-workbook
-    read/write until this was added back — **also needs admin consent**,
-    once). Add both this and `Sites.Manage.All` together; each covers a
-    different half of what the app does.
+  - `Sites.Manage.All` (create new Lists/libraries and read/write everything
+    in the site — the app auto-provisions its own structure on first run,
+    which needs the stronger "manage" permission, not just "read/write" —
+    **needs admin consent**, once). A Graph scope is required on the token
+    regardless of the signed-in user's own SharePoint permissions; the scope
+    and the site ACL are two independent checks.
+  - `Sites.ReadWrite.All` was tried at one point to work around a persistent
+    "Could not obtain a WAC access token" error on the response workbook.
+    It turned out not to be a permission problem at all — Graph's Excel
+    Workbook REST API (`/workbook/...`, backed by Office Online Server) just
+    cannot negotiate a session for this data in this tenant, under any
+    scope. The app no longer calls that API at all — response workbooks are
+    read/written as plain file bytes (`/content` GET+PUT) and parsed
+    client-side instead (see `services/excel.ts`), which only needs
+    `Sites.Manage.All` above. If you already added `Sites.ReadWrite.All`
+    it's harmless to leave in place, just no longer required.
 - **Authentication**: confirm "Allow public client flows" is enabled if prompted
   (this is a public client — no secret, nothing to protect on a static site)
 - Restrict who can sign in: **Enterprise applications → Custom Forms → Properties →

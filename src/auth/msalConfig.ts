@@ -96,17 +96,17 @@ export const msalConfig: Configuration = {
  *                                        needs one-time admin consent (see SETUP.md).
  */
 export const loginRequest = {
-  // Sites.ReadWrite.All is requested ALONGSIDE Sites.Manage.All (not instead
-  // of it) — Microsoft's own Excel REST API docs list Files.ReadWrite,
-  // Files.ReadWrite.All, and Sites.ReadWrite.All as the permissions that
-  // authorize /workbook/... calls (the ones that go through Office Online
-  // Server, aka "WAC"). Sites.Manage.All is what List/library *creation*
-  // needs (see bootstrap.ts), but it turns out NOT to satisfy the separate
-  // WAC-token check the workbook endpoints do — confirmed by a persistent
-  // "Could not obtain a WAC access token" 403/503 on /workbook/ calls made
-  // long after publish (i.e. not the transient "file just uploaded" case
-  // graphClient's retry handles), which only stopped once ReadWrite.All was
-  // added back. Both need one-time admin consent (see SETUP.md).
+  // Sites.ReadWrite.All was added alongside Sites.Manage.All while chasing a
+  // persistent "Could not obtain a WAC access token" error on Graph's Excel
+  // Workbook API (/workbook/...). It turned out NOT to be a permission gap —
+  // the error persisted identically even from an explicit
+  // /workbook/createSession call under both scopes together, proving this
+  // tenant's Office Online Server integration can't negotiate a session for
+  // this data under ANY scope. services/excel.ts no longer calls the
+  // Workbook API at all (plain file content GET/PUT + client-side parsing
+  // instead), so Sites.ReadWrite.All isn't actually required by this app —
+  // kept here only because revoking it isn't worth another admin-consent
+  // round trip; Sites.Manage.All alone covers everything the app does now.
   scopes: [
     "openid",
     "profile",

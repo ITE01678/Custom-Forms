@@ -23,10 +23,13 @@ Then, on the new registration:
   - `openid`, `profile`, `email`, `User.Read` (sign-in + own profile — no consent needed)
   - `User.Read.All` (read colleagues' department/employeeId/manager/directReports —
     **needs "Grant admin consent" clicked by a tenant admin**, once)
-  - `Sites.ReadWrite.All` (read/write the site's Lists, libraries, and Excel
-    workbooks — **also needs admin consent**, once). A Graph scope is required
-    on the token regardless of the signed-in user's own SharePoint
-    permissions; the scope and the site ACL are two independent checks.
+  - `Sites.Manage.All` (read/write the site's Lists, libraries, and Excel
+    workbooks, AND create new Lists/libraries — the app auto-provisions its
+    own structure on first run, which needs the stronger "manage" permission,
+    not just "read/write" — **also needs admin consent**, once). A Graph
+    scope is required on the token regardless of the signed-in user's own
+    SharePoint permissions; the scope and the site ACL are two independent
+    checks.
 - **Authentication**: confirm "Allow public client flows" is enabled if prompted
   (this is a public client — no secret, nothing to protect on a static site)
 - Restrict who can sign in: **Enterprise applications → Custom Forms → Properties →

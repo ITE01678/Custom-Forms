@@ -36,7 +36,7 @@ async function getDelegatedToken(scopes: string[]): Promise<string> {
   }
   try {
     const result = await msalInstance.acquireTokenSilent({ scopes, account });
-    if (scopes.includes("Sites.ReadWrite.All")) {
+    if (scopes.includes("Sites.Manage.All")) {
       // Temporary diagnostic logging — remove once the SharePoint 403 issue
       // is confirmed fixed. Logs the ACTUAL scopes present in the token's
       // own `scp` claim, not just what was requested — the two can differ
@@ -44,7 +44,7 @@ async function getDelegatedToken(scopes: string[]): Promise<string> {
       // up here.
       const payload = decodeJwtPayload(result.accessToken);
       // eslint-disable-next-line no-console
-      console.info("[auth-debug] token for Sites.ReadWrite.All call", {
+      console.info("[auth-debug] token for Sites.Manage.All call", {
         requestedScopes: scopes,
         actualScopeClaim: payload?.scp ?? payload?.roles ?? "(none found in token)",
         aud: payload?.aud,
@@ -146,7 +146,7 @@ export async function graphUploadBinary<T = unknown>(
   bytes: ArrayBuffer,
   opts: { contentType?: string; scopes?: string[]; retries?: number } = {}
 ): Promise<T> {
-  const scopes = opts.scopes ?? ["Sites.ReadWrite.All"];
+  const scopes = opts.scopes ?? ["Sites.Manage.All"];
   const maxRetries = opts.retries ?? 3;
   const url = path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
 

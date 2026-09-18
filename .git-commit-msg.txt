@@ -1,0 +1,23 @@
+Switch to Sites.Manage.All: Sites.ReadWrite.All isn't enough to CREATE new Lists/libraries
+
+Definitive proof this time: decoded the actual issued access token via
+the diagnostic logging added two commits ago. It correctly carried
+Sites.ReadWrite.All in its scp claim, with the right Graph audience
+(00000003-0000-0000-c000-000000000000) - the token itself was never the
+problem. Every failing call was specifically a POST to create a new
+List (bootstrap.ts auto-provisioning Forms/SyncQueue/etc.), and Graph's
+"create list" operation needs the stronger Sites.Manage.All or
+Sites.FullControl.All - Sites.ReadWrite.All only covers reading/writing
+items within lists that already exist.
+
+Updated loginRequest, graphScopes.sites, the diagnostic log's matching
+condition (was checking for the old scope name), and graphUploadBinary's
+default fallback scope. SETUP.md updated to tell new setups to grant
+Sites.Manage.All instead.
+
+Manual step still needed in Azure: add the Sites.Manage.All delegated
+permission (Microsoft Graph) to the app registration and grant admin
+consent - Sites.ReadWrite.All being already consented doesn't cover this,
+they're two separate permissions.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>

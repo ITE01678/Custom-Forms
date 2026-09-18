@@ -74,18 +74,29 @@ export const msalConfig: Configuration = {
  *                                        manager/directReports for autofill &
  *                                        connector fields (needs one-time admin
  *                                        consent — see SETUP.md)
- *  - Sites.ReadWrite.All              -> read/write the "Forms" SharePoint site's
- *                                        Lists, libraries, and Excel workbooks.
- *                                        A Graph *scope* is required on the token
- *                                        regardless of the user's underlying
- *                                        SharePoint permissions — the scope and
- *                                        the site ACL are two independent checks.
- *                                        This is a high-privilege delegated
- *                                        permission and needs one-time admin
- *                                        consent (see SETUP.md).
+ *  - Sites.Manage.All                 -> read/write the "Forms" SharePoint site's
+ *                                        Lists, libraries, and Excel workbooks,
+ *                                        AND create new Lists/libraries
+ *                                        (bootstrap.ts auto-provisioning).
+ *                                        Sites.ReadWrite.All (tried first) covers
+ *                                        reading/writing items in EXISTING lists
+ *                                        but Graph's "create list" operation
+ *                                        (POST /sites/{id}/lists) needs the
+ *                                        stronger Sites.Manage.All or
+ *                                        Sites.FullControl.All — confirmed by
+ *                                        decoding the actual issued token (it
+ *                                        correctly had Sites.ReadWrite.All) and
+ *                                        still getting 403 on every list-create
+ *                                        call specifically. A Graph *scope* is
+ *                                        required on the token regardless of the
+ *                                        user's underlying SharePoint permissions
+ *                                        — the scope and the site ACL are two
+ *                                        independent checks. This is a
+ *                                        high-privilege delegated permission and
+ *                                        needs one-time admin consent (see SETUP.md).
  */
 export const loginRequest = {
-  scopes: ["openid", "profile", "email", "User.Read", "User.Read.All", "Sites.ReadWrite.All"],
+  scopes: ["openid", "profile", "email", "User.Read", "User.Read.All", "Sites.Manage.All"],
   // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
   // above. RedirectRequest's type omits a per-request responseMode field entirely,
   // so it has no effect here regardless of what's passed.
@@ -94,5 +105,5 @@ export const loginRequest = {
 export const graphScopes = {
   userRead: ["User.Read"],
   userReadAll: ["User.Read.All"],
-  sites: ["Sites.ReadWrite.All"],
+  sites: ["Sites.Manage.All"],
 };

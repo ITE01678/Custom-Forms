@@ -57,38 +57,40 @@ export function SyncHealthPage() {
       ) : items.length === 0 ? (
         <p>Nothing pending — everything is synced.</p>
       ) : (
-        <table className="response-grid">
-          <thead>
-            <tr>
-              <th>Form</th>
-              <th>Response</th>
-              <th>Submitter</th>
-              <th>Operation</th>
-              <th>Status</th>
-              <th>Attempts</th>
-              <th>Last error</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.fields.FormId}</td>
-                <td>{item.fields.ResponseId}</td>
-                <td>{item.fields.SubmitterEmail}</td>
-                <td>{item.fields.Operation}</td>
-                <td>{item.fields.Status}</td>
-                <td>{item.fields.Attempts}</td>
-                <td>{item.fields.LastError ?? "—"}</td>
-                <td>
-                  <button onClick={() => handleRetry(item)} disabled={retrying === item.id}>
-                    {retrying === item.id ? "Retrying…" : "Retry"}
-                  </button>
-                </td>
+        <div className="table-scroll">
+          <table className="response-grid">
+            <thead>
+              <tr>
+                <th>Form</th>
+                <th>Response</th>
+                <th>Submitter</th>
+                <th>Operation</th>
+                <th>Status</th>
+                <th>Attempts</th>
+                <th>Last error</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.fields.FormId}</td>
+                  <td>{item.fields.ResponseId}</td>
+                  <td>{item.fields.SubmitterEmail}</td>
+                  <td>{item.fields.Operation}</td>
+                  <td>{item.fields.Status}</td>
+                  <td>{item.fields.Attempts}</td>
+                  <td>{item.fields.LastError ?? "—"}</td>
+                  <td>
+                    <button onClick={() => handleRetry(item)} disabled={retrying === item.id}>
+                      {retrying === item.id ? "Retrying…" : "Retry"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       </div>
     </div>

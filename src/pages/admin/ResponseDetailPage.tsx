@@ -131,37 +131,39 @@ export function ResponseDetailPage() {
         {auditTrail.length === 0 ? (
           <p>No history recorded yet.</p>
         ) : (
-          <table className="response-grid">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>By</th>
-                <th>Action</th>
-                <th>Changed</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {auditTrail.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{new Date(entry.at).toLocaleString()}</td>
-                  <td>{entry.byUpn}</td>
-                  <td>{entry.action}</td>
-                  <td>
-                    {entry.changedFields.length === 0
-                      ? "—"
-                      : entry.changedFields
-                          .map((c) => {
-                            const label = fields.find((f) => f.id === c.fieldId)?.label ?? c.fieldId;
-                            return `${label}: ${formatAnswer(c.oldValue as AnswerValue)} → ${formatAnswer(c.newValue as AnswerValue)}`;
-                          })
-                          .join("; ")}
-                  </td>
-                  <td>{entry.reason ?? "—"}</td>
+          <div className="table-scroll">
+            <table className="response-grid">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>By</th>
+                  <th>Action</th>
+                  <th>Changed</th>
+                  <th>Reason</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {auditTrail.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{new Date(entry.at).toLocaleString()}</td>
+                    <td>{entry.byUpn}</td>
+                    <td>{entry.action}</td>
+                    <td>
+                      {entry.changedFields.length === 0
+                        ? "—"
+                        : entry.changedFields
+                            .map((c) => {
+                              const label = fields.find((f) => f.id === c.fieldId)?.label ?? c.fieldId;
+                              return `${label}: ${formatAnswer(c.oldValue as AnswerValue)} → ${formatAnswer(c.newValue as AnswerValue)}`;
+                            })
+                            .join("; ")}
+                    </td>
+                    <td>{entry.reason ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       </div>

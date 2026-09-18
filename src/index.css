@@ -42,10 +42,19 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background: var(--surface-sunken);
   color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 h1,
@@ -273,6 +282,12 @@ textarea {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: 1.5rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
 }
 
 .feature-card__icon {
@@ -323,6 +338,214 @@ textarea {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.92rem;
+}
+
+/* --- Landing: illustrative product mockup --- */
+
+.landing__mockup {
+  margin-top: 3rem;
+  perspective: 1200px;
+}
+
+.mockup-window {
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transform: rotateX(2deg);
+  transition: transform 300ms ease;
+}
+
+.landing__mockup:hover .mockup-window {
+  transform: rotateX(0deg) translateY(-4px);
+}
+
+.mockup-window__bar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.mockup-window__bar span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.mockup-window__body {
+  padding: 1.25rem;
+  text-align: left;
+}
+
+.mockup-field {
+  margin-bottom: 1rem;
+}
+
+.mockup-field__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.mockup-field__value {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.mockup-field__input {
+  height: 2.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+
+.mockup-field__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mockup-field__row {
+  height: 1.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
+.mockup-field__row:nth-child(2) {
+  width: 85%;
+}
+
+.mockup-field__row:nth-child(3) {
+  width: 65%;
+}
+
+.mockup-window__submit {
+  margin-top: 0.5rem;
+  text-align: center;
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* --- Landing: comparison table --- */
+
+.comparison-table__wrap {
+  overflow-x: auto;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.comparison-table thead th {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: var(--surface-sunken);
+}
+
+.comparison-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.comparison-table tbody tr:last-child th,
+.comparison-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table__forms {
+  color: var(--text-muted);
+}
+
+.comparison-table__custom {
+  color: var(--success);
+  font-weight: 500;
+}
+
+/* --- Landing: FAQ --- */
+
+.faq-list {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+}
+
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1.2rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.faq-item[open] summary::before {
+  content: "−";
+}
+
+.faq-item p {
+  margin: 0.6rem 0 0.2rem 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.landing__footer {
+  text-align: center;
+  padding: 2.5rem 1.5rem 3rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 /* --- Builder --- */
@@ -1229,6 +1452,15 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.graph-image-error {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);
+  color: var(--danger, #dc2626);
+  font-size: 0.78rem;
+}
+
 .media-upload__label {
   display: block;
   font-size: 0.85rem;
@@ -1294,4 +1526,92 @@ textarea {
   color: var(--accent-strong);
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 720px) {
+  .page,
+  .page--wide {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .app-topbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .app-topbar__left {
+    gap: 0.75rem;
+  }
+
+  .landing__hero {
+    padding: 3rem 1.25rem 2.5rem;
+  }
+
+  .landing__title {
+    font-size: 2.1rem;
+  }
+
+  .landing__tagline {
+    font-size: 1rem;
+  }
+
+  .landing__section {
+    padding: 1.75rem 1rem;
+  }
+
+  .builder-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .builder-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .builder-tabs button {
+    flex-shrink: 0;
+  }
+
+  .builder-actions {
+    flex-wrap: wrap;
+  }
+
+  .builder-actions button {
+    flex: 1 1 auto;
+  }
+
+  .builder-share {
+    flex-direction: column;
+  }
+
+  .field-editor__options,
+  .field-editor__help,
+  .field-editor__validation {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .field-editor__row {
+    flex-wrap: wrap;
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 0.6rem 0.7rem;
+    font-size: 0.82rem;
+  }
+
+  .mockup-window {
+    max-width: 100%;
+  }
 }

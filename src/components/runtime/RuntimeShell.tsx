@@ -18,7 +18,7 @@ export function RuntimeShell({ title, description, branding, children }: Props) 
   const bg = branding.background;
   // CSS background-image can't take a graph-image:// reference directly —
   // resolve it the same way GraphImage does before it goes into inline style.
-  const resolvedBgImageUrl = useResolvedImageUrl(bg?.type === "image" ? bg.imageUrl : undefined);
+  const { url: resolvedBgImageUrl } = useResolvedImageUrl(bg?.type === "image" ? bg.imageUrl : undefined);
 
   const themeStyle: CSSProperties = { "--accent": branding.themeColor || DEFAULT_ACCENT } as CSSProperties;
   if (bg?.type === "color" && bg.color) {

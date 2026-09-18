@@ -148,30 +148,32 @@ export function ConnectorsPage() {
         ) : configs.length === 0 ? (
           <p>None yet.</p>
         ) : (
-          <table className="response-grid">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Config</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {configs.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.fields.Name}</td>
-                  <td>{c.fields.ConnectorType}</td>
-                  <td>
-                    <code>{c.fields.ConfigJson}</code>
-                  </td>
-                  <td>
-                    <button onClick={() => handleDelete(c.id)}>Delete</button>
-                  </td>
+          <div className="table-scroll">
+            <table className="response-grid">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Config</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {configs.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.fields.Name}</td>
+                    <td>{c.fields.ConnectorType}</td>
+                    <td>
+                      <code>{c.fields.ConfigJson}</code>
+                    </td>
+                    <td>
+                      <button onClick={() => handleDelete(c.id)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       </div>

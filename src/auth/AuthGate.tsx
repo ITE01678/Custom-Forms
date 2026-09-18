@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "./useAuth";
-import { getRedirectError } from "./msalInstance";
+import { getRedirectError, msalInstance } from "./msalInstance";
 
 const ATTEMPTED_KEY = "customForms.authRedirectAttempted";
 
@@ -36,6 +36,22 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     if (isAuthenticated) {
       sessionStorage.removeItem(ATTEMPTED_KEY);
+      return;
+    }
+
+    // useIsAuthenticated() can report false for a single render even after
+    // MSAL's own instance already has an active account set — confirmed via
+    // a real repro: the account was already active internally the moment
+    // this effect first ran, but the hook hadn't caught up yet. Trusting the
+    // hook alone here fired an unnecessary second loginRedirect() right on
+    // top of a login that had already succeeded, which is what caused the
+    // visible "back and forth" (Microsoft's silent SSO still round-trips the
+    // browser even when it doesn't show a prompt). Check the instance
+    // directly as a fallback and skip re-triggering login if it already has
+    // an account — the next render will have isAuthenticated: true.
+    if (msalInstance.getActiveAccount()) {
+      // eslint-disable-next-line no-console
+      console.info("[auth-debug] AuthGate: hook says unauthenticated but instance has an active account — skipping login()");
       return;
     }
 

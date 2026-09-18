@@ -187,6 +187,36 @@ export async function graphUploadBinary<T = unknown>(
   throw new GraphError(500, path, "retry loop exhausted");
 }
 
+/**
+ * Raw binary download (e.g. rendering a SharePoint-uploaded image as an
+ * <img> without depending on a live browser session against the tenant's
+ * SharePoint host — a driveItem's plain `webUrl` only renders for a browser
+ * that already has its own SharePoint sign-in cookie, which an incognito/
+ * private window never has). Content-Disposition/type are irrelevant to the
+ * caller here; this always resolves to raw bytes.
+ */
+export async function graphFetchBinary(path: string, opts: { scopes?: string[]; retries?: number } = {}): Promise<Blob> {
+  const scopes = opts.scopes ?? ["User.Read"];
+  const maxRetries = opts.retries ?? 3;
+  const url = path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const token = await getDelegatedToken(scopes);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+
+    if (res.status === 429 || res.status === 503) {
+      const retryAfterSec = Number(res.headers.get("Retry-After") ?? "1");
+      if (attempt === maxRetries) throw new GraphThrottledError(path, retryAfterSec * 1000);
+      await sleep(retryAfterSec * 1000 + jitter(250));
+      continue;
+    }
+    if (!res.ok) throw new GraphError(res.status, path, await res.text());
+    return await res.blob();
+  }
+
+  throw new GraphError(500, path, "retry loop exhausted");
+}
+
 interface GraphPageResponse<T> {
   value: T[];
   "@odata.nextLink"?: string;

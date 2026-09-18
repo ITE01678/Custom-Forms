@@ -1,8 +1,10 @@
 import type { FieldType, FormSection } from "../../formsSchema/types";
 import { FIELD_TYPE_LABELS, useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { FieldEditor, type ConnectorOption } from "./FieldEditor";
+import { MediaUploadField } from "./MediaUploadField";
 
 interface Props {
+  formId: string;
   section: FormSection;
   isFirst: boolean;
   isLast: boolean;
@@ -23,7 +25,7 @@ const ADDABLE_FIELD_TYPES: FieldType[] = [
   "repeatingTable",
 ];
 
-export function SectionEditor({ section, isFirst, isLast, connectorOptions }: Props) {
+export function SectionEditor({ formId, section, isFirst, isLast, connectorOptions }: Props) {
   const { updateSection, removeSection, duplicateSection, moveSection, addField } = useFormBuilderStore();
   const sortedFields = [...section.fields].sort((a, b) => a.order - b.order);
 
@@ -55,10 +57,12 @@ export function SectionEditor({ section, isFirst, isLast, connectorOptions }: Pr
           onChange={(e) => updateSection(section.id, { description: e.target.value })}
           placeholder="Section description (optional)"
         />
-        <input
-          value={section.imageUrl ?? ""}
-          onChange={(e) => updateSection(section.id, { imageUrl: e.target.value })}
-          placeholder="Section image URL (optional)"
+        <MediaUploadField
+          formId={formId}
+          kind={`section-${section.id}`}
+          label="Section image (optional)"
+          value={section.imageUrl}
+          onChange={(url) => updateSection(section.id, { imageUrl: url })}
         />
       </div>
 
@@ -66,6 +70,7 @@ export function SectionEditor({ section, isFirst, isLast, connectorOptions }: Pr
         {sortedFields.map((field, i) => (
           <FieldEditor
             key={field.id}
+            formId={formId}
             sectionId={section.id}
             field={field}
             isFirst={i === 0}

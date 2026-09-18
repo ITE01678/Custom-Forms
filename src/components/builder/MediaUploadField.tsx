@@ -1,5 +1,6 @@
 import { useState, type DragEvent } from "react";
 import { uploadBrandingAsset } from "../../services/attachments";
+import { GraphImage } from "../common/GraphImage";
 
 interface Props {
   formId: string;
@@ -58,7 +59,7 @@ export function MediaUploadField({ formId, kind, value, onChange, label }: Props
         onDrop={handleDrop}
       >
         {value ? (
-          <img className="media-upload__preview" src={value} alt="" />
+          <GraphImage className="media-upload__preview" src={value} alt="" />
         ) : (
           <span className="media-upload__hint">Drag an image here, or</span>
         )}

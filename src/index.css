@@ -480,7 +480,28 @@ textarea {
 
 .field-editor__option {
   display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.field-editor__option-row {
+  display: flex;
   gap: 0.4rem;
+}
+
+.field-editor__option-image {
+  margin-left: 0.2rem;
+}
+
+.field-editor__option-image summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.field-editor__option-image .media-upload {
+  max-width: 260px;
+  margin-top: 0.4rem;
 }
 
 .field-editor__help,
@@ -886,6 +907,25 @@ textarea {
 .choice-pill__other-input {
   flex: 1;
   padding: 0.3rem 0.5rem;
+}
+
+.choice-pill--media {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.6rem;
+}
+
+.choice-pill--media input[type="radio"],
+.choice-pill--media input[type="checkbox"] {
+  align-self: flex-start;
+}
+
+.choice-pill__image {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin: 0.3rem 0;
 }
 
 .rating-stars {

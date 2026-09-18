@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { AnswerValue, FormField } from "../../../formsSchema/types";
 import { shuffle } from "../../../lib/shuffle";
+import { GraphImage } from "../../common/GraphImage";
 
 /** AnswerValue's array member is `string[] | FileAttachment[]` — multiChoice
  *  only ever deals with the string[] case, so narrow explicitly rather than
@@ -55,7 +56,7 @@ function renderInput(
   field: FormField,
   value: AnswerValue,
   onChange: (v: AnswerValue) => void,
-  options: { value: string; label: string }[]
+  options: NonNullable<FormField["options"]>
 ) {
   switch (field.type) {
     case "shortText":
@@ -154,8 +155,9 @@ function renderInput(
       return (
         <div>
           {options.map((opt) => (
-            <label key={opt.value} className={`choice-pill ${value === opt.value ? "is-selected" : ""}`}>
+            <label key={opt.value} className={`choice-pill ${opt.imageUrl ? "choice-pill--media" : ""} ${value === opt.value ? "is-selected" : ""}`}>
               <input type="radio" name={field.id} checked={value === opt.value} onChange={() => onChange(opt.value)} />
+              {opt.imageUrl && <GraphImage className="choice-pill__image" src={opt.imageUrl} alt="" />}
               {opt.label}
             </label>
           ))}
@@ -183,7 +185,7 @@ function renderInput(
       return (
         <div>
           {options.map((opt) => (
-            <label key={opt.value} className={`choice-pill ${selected.includes(opt.value) ? "is-selected" : ""}`}>
+            <label key={opt.value} className={`choice-pill ${opt.imageUrl ? "choice-pill--media" : ""} ${selected.includes(opt.value) ? "is-selected" : ""}`}>
               <input
                 type="checkbox"
                 checked={selected.includes(opt.value)}
@@ -191,6 +193,7 @@ function renderInput(
                   onChange(e.target.checked ? [...selected, opt.value] : selected.filter((v) => v !== opt.value))
                 }
               />
+              {opt.imageUrl && <GraphImage className="choice-pill__image" src={opt.imageUrl} alt="" />}
               {opt.label}
             </label>
           ))}

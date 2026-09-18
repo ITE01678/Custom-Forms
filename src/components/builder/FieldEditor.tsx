@@ -1,5 +1,6 @@
 import type { ConnectorType, FormField } from "../../formsSchema/types";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
+import { MediaUploadField } from "./MediaUploadField";
 
 export interface ConnectorOption {
   id: string;
@@ -8,6 +9,7 @@ export interface ConnectorOption {
 }
 
 interface Props {
+  formId: string;
   sectionId: string;
   field: FormField;
   isFirst: boolean;
@@ -46,7 +48,7 @@ const GRAPH_PROPERTIES: { value: string; label: string }[] = [
   { value: "usageLocation", label: "Usage location" },
 ];
 
-export function FieldEditor({ sectionId, field, isFirst, isLast, connectorOptions }: Props) {
+export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connectorOptions }: Props) {
   const { updateField, removeField, duplicateField, moveField } = useFormBuilderStore();
 
   const set = (updates: Partial<FormField>) => updateField(sectionId, field.id, updates);
@@ -102,20 +104,36 @@ export function FieldEditor({ sectionId, field, isFirst, isLast, connectorOption
           <div className="field-editor__options">
             {(field.options ?? []).map((opt, i) => (
               <div key={opt.value} className="field-editor__option">
-                <input
-                  value={opt.label}
-                  onChange={(e) => {
-                    const options = [...(field.options ?? [])];
-                    options[i] = { ...opt, label: e.target.value };
-                    set({ options });
-                  }}
-                />
-                <button
-                  onClick={() => set({ options: (field.options ?? []).filter((_, j) => j !== i) })}
-                  title="Remove option"
-                >
-                  ✕
-                </button>
+                <div className="field-editor__option-row">
+                  <input
+                    value={opt.label}
+                    onChange={(e) => {
+                      const options = [...(field.options ?? [])];
+                      options[i] = { ...opt, label: e.target.value };
+                      set({ options });
+                    }}
+                  />
+                  <button
+                    onClick={() => set({ options: (field.options ?? []).filter((_, j) => j !== i) })}
+                    title="Remove option"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <details className="field-editor__option-image">
+                  <summary>{opt.imageUrl ? "Option image" : "+ Add option image"}</summary>
+                  <MediaUploadField
+                    formId={formId}
+                    kind={`option-${field.id}-${opt.value}`}
+                    label=""
+                    value={opt.imageUrl}
+                    onChange={(url) => {
+                      const options = [...(field.options ?? [])];
+                      options[i] = { ...opt, imageUrl: url };
+                      set({ options });
+                    }}
+                  />
+                </details>
               </div>
             ))}
             <button

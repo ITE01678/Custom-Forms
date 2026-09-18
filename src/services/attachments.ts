@@ -2,6 +2,7 @@ import { graphFetch, graphUploadBinary } from "./graphClient";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { LIBRARY_NAMES } from "./bootstrap";
 import { graphScopes } from "../auth/msalConfig";
+import { encodeGraphImageRef } from "../lib/graphImageRef";
 import type { FileAttachment } from "../formsSchema/types";
 
 function sanitizeFilename(name: string): string {
@@ -66,5 +67,9 @@ export async function uploadBrandingAsset(formId: string, kind: string, file: Fi
     scopes: graphScopes.sites,
   });
 
-  return { name: file.name, url: result.webUrl, size: result.size };
+  // Stored as a graph-image:// reference, not the raw webUrl — see
+  // lib/graphImageRef.ts: webUrl only renders for a browser that already
+  // has its own SharePoint session cookie, which incognito/private windows
+  // (how this app gets tested) never have.
+  return { name: file.name, url: encodeGraphImageRef(driveId, path), size: result.size };
 }

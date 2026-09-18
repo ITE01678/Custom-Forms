@@ -11,8 +11,13 @@ export function SharingPanel({ form }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
 
+  // BASE_URL is Vite's resolved `base` (e.g. "/Custom-Forms/" on GitHub Pages'
+  // project-site subpath) — window.location.origin alone omits it, which
+  // produced share links 404ing at GitHub Pages' own "no site here" page.
   const shareUrl =
-    form.status === "published" ? `${window.location.origin}/#/f/${form.slug}` : null;
+    form.status === "published"
+      ? `${window.location.origin}${import.meta.env.BASE_URL}#/f/${form.slug}`
+      : null;
 
   useEffect(() => {
     if (shareUrl && canvasRef.current) {

@@ -126,6 +126,7 @@ export function BuilderPage() {
           {sortedSections.map((section, i) => (
             <SectionEditor
               key={section.id}
+              formId={form.id}
               section={section}
               isFirst={i === 0}
               isLast={i === sortedSections.length - 1}

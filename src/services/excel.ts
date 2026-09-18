@@ -109,7 +109,7 @@ async function getTemplateBytes(): Promise<ArrayBuffer> {
 async function workbookExists(driveId: string, formId: string): Promise<boolean> {
   try {
     await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}?$select=id`, {
-      scopes: graphScopes.sites,
+      scopes: graphScopes.excel,
     });
     return true;
   } catch (err) {
@@ -122,7 +122,7 @@ async function addTableColumn(driveId: string, formId: string, name: string): Pr
   await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}:/workbook/tables('${TABLE}')/columns/add`, {
     method: "POST",
     body: { name },
-    scopes: graphScopes.sites,
+    scopes: graphScopes.excel,
   });
 }
 
@@ -140,7 +140,7 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
   const bytes = await getTemplateBytes();
   await graphUploadBinary(`/drives/${driveId}/root:/${workbookPath(form.id)}:/content`, bytes, {
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    scopes: graphScopes.sites,
+    scopes: graphScopes.excel,
   });
 
   for (const field of flattenFields(form)) {
@@ -171,7 +171,7 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
   await graphFetch(`/drives/${driveId}/root:/${workbookPath(form.id)}:/workbook/tables('${TABLE}')/rows`, {
     method: "POST",
     body: { values: [[...metaValues, ...fieldValues]] },
-    scopes: graphScopes.sites,
+    scopes: graphScopes.excel,
   });
 }
 
@@ -179,7 +179,7 @@ async function getRowAtIndex(driveId: string, formId: string, rowIndex: number):
   try {
     const result = await graphFetch<{ values: unknown[][] }>(
       `/drives/${driveId}/root:/${workbookPath(formId)}:/workbook/tables('${TABLE}')/rows/itemAt(index=${rowIndex})?$select=values`,
-      { scopes: graphScopes.sites }
+      { scopes: graphScopes.excel }
     );
     return result.values[0] ?? null;
   } catch (err) {
@@ -246,7 +246,7 @@ export async function updateResponseRow(
     {
       method: "PATCH",
       body: { values: [[...metaValues, ...fieldValues]] },
-      scopes: graphScopes.sites,
+      scopes: graphScopes.excel,
     }
   );
 
@@ -293,7 +293,7 @@ export async function getResponseRows(form: FormDefinition): Promise<ResponseRow
 
   const result = await graphFetch<{ value: { values: unknown[][] }[] }>(
     `/drives/${driveId}/root:/${workbookPath(form.id)}:/workbook/tables('${TABLE}')/rows?$select=values`,
-    { scopes: graphScopes.sites }
+    { scopes: graphScopes.excel }
   );
   return result.value.map((r) => ({ values: r.values[0] as ResponseRow["values"] }));
 }

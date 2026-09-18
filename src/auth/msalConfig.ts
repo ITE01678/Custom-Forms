@@ -96,7 +96,26 @@ export const msalConfig: Configuration = {
  *                                        needs one-time admin consent (see SETUP.md).
  */
 export const loginRequest = {
-  scopes: ["openid", "profile", "email", "User.Read", "User.Read.All", "Sites.Manage.All"],
+  // Sites.ReadWrite.All is requested ALONGSIDE Sites.Manage.All (not instead
+  // of it) — Microsoft's own Excel REST API docs list Files.ReadWrite,
+  // Files.ReadWrite.All, and Sites.ReadWrite.All as the permissions that
+  // authorize /workbook/... calls (the ones that go through Office Online
+  // Server, aka "WAC"). Sites.Manage.All is what List/library *creation*
+  // needs (see bootstrap.ts), but it turns out NOT to satisfy the separate
+  // WAC-token check the workbook endpoints do — confirmed by a persistent
+  // "Could not obtain a WAC access token" 403/503 on /workbook/ calls made
+  // long after publish (i.e. not the transient "file just uploaded" case
+  // graphClient's retry handles), which only stopped once ReadWrite.All was
+  // added back. Both need one-time admin consent (see SETUP.md).
+  scopes: [
+    "openid",
+    "profile",
+    "email",
+    "User.Read",
+    "User.Read.All",
+    "Sites.Manage.All",
+    "Sites.ReadWrite.All",
+  ],
   // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
   // above. RedirectRequest's type omits a per-request responseMode field entirely,
   // so it has no effect here regardless of what's passed.
@@ -105,5 +124,9 @@ export const loginRequest = {
 export const graphScopes = {
   userRead: ["User.Read"],
   userReadAll: ["User.Read.All"],
+  // List/library create + generic Sites/Lists CRUD (sites.ts, bootstrap.ts, lists.ts).
   sites: ["Sites.Manage.All"],
+  // Excel Workbook API (services/excel.ts) — see the comment on loginRequest
+  // above for why this needs to be ReadWrite.All specifically, not Manage.All.
+  excel: ["Sites.ReadWrite.All", "Sites.Manage.All"],
 };

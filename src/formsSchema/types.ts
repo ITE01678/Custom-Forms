@@ -154,7 +154,7 @@ export interface FormField {
   order: number;
   fillMode: FillMode;
   readOnly?: boolean; // usually true when fillMode !== 'manual'
-  options?: { value: string; label: string }[]; // choice types
+  options?: { value: string; label: string; imageUrl?: string }[]; // choice types
   allowOther?: boolean; // choice types — adds a free-text "Other" option, MS-Forms style
   shuffleOptions?: boolean; // choice types — randomize option order per respondent
   columns?: RepeatingTableColumn[]; // repeatingTable type

@@ -24,6 +24,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Temporary diagnostic logging — remove once the redirect-loop issue is
+    // confirmed fixed. Logs every time this guard re-evaluates, so a repro
+    // can be read back as an exact sequence of state transitions.
+    // eslint-disable-next-line no-console
+    console.info("[auth-debug] AuthGate effect", {
+      isAuthenticated,
+      attemptedFlag: sessionStorage.getItem(ATTEMPTED_KEY),
+      redirectError: getRedirectError()?.message ?? null,
+    });
+
     if (isAuthenticated) {
       sessionStorage.removeItem(ATTEMPTED_KEY);
       return;

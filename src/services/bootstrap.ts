@@ -1,6 +1,7 @@
 import { graphFetch } from "./graphClient";
 import { GraphError } from "./graphErrors";
 import { getFormsSite } from "./sites";
+import { graphScopes } from "../auth/msalConfig";
 
 /**
  * Creates the SharePoint Lists/libraries this app needs inside the "Forms"
@@ -20,7 +21,9 @@ let ensured = false;
 
 async function listExists(siteId: string, displayName: string): Promise<boolean> {
   try {
-    await graphFetch(`/sites/${siteId}/lists/${encodeURIComponent(displayName)}?$select=id`);
+    await graphFetch(`/sites/${siteId}/lists/${encodeURIComponent(displayName)}?$select=id`, {
+      scopes: graphScopes.sites,
+    });
     return true;
   } catch (err) {
     if (err instanceof GraphError && err.status === 404) return false;
@@ -36,6 +39,7 @@ async function createGenericList(siteId: string, displayName: string, columns: C
       list: { template: "genericList" },
       columns,
     },
+    scopes: graphScopes.sites,
   });
 }
 
@@ -46,6 +50,7 @@ async function createDocumentLibrary(siteId: string, displayName: string): Promi
       displayName,
       list: { template: "documentLibrary" },
     },
+    scopes: graphScopes.sites,
   });
 }
 

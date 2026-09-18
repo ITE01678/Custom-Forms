@@ -1,4 +1,5 @@
 import { graphFetch } from "./graphClient";
+import { graphScopes } from "../auth/msalConfig";
 
 /**
  * Resolves the SharePoint "Forms" site's id/drive id via Graph, so the rest of
@@ -26,12 +27,16 @@ async function resolveSiteId(): Promise<string> {
         "create the 'Forms' SharePoint site first (see SETUP.md) and add these to .env.local."
     );
   }
-  const site = await graphFetch<{ id: string }>(`/sites/${SITE_HOSTNAME}:${SITE_PATH}`);
+  const site = await graphFetch<{ id: string }>(`/sites/${SITE_HOSTNAME}:${SITE_PATH}`, {
+    scopes: graphScopes.sites,
+  });
   return site.id;
 }
 
 async function resolveDriveId(siteId: string): Promise<string> {
-  const drive = await graphFetch<{ id: string }>(`/sites/${siteId}/drive?$select=id`);
+  const drive = await graphFetch<{ id: string }>(`/sites/${siteId}/drive?$select=id`, {
+    scopes: graphScopes.sites,
+  });
   return drive.id;
 }
 
@@ -47,7 +52,8 @@ export async function getFormsSite(): Promise<SiteInfo> {
 export async function resolveListId(listName: string): Promise<string> {
   const { siteId } = await getFormsSite();
   const list = await graphFetch<{ id: string }>(
-    `/sites/${siteId}/lists/${encodeURIComponent(listName)}?$select=id`
+    `/sites/${siteId}/lists/${encodeURIComponent(listName)}?$select=id`,
+    { scopes: graphScopes.sites }
   );
   return list.id;
 }
@@ -65,7 +71,8 @@ export async function resolveDriveIdByLibraryName(libraryName: string): Promise<
 
   const { siteId } = await getFormsSite();
   const drives = await graphFetch<{ value: { id: string; name: string }[] }>(
-    `/sites/${siteId}/drives?$select=id,name`
+    `/sites/${siteId}/drives?$select=id,name`,
+    { scopes: graphScopes.sites }
   );
   const match = drives.value.find((d) => d.name === libraryName);
   if (!match) {

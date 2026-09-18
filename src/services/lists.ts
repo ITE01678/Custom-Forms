@@ -1,5 +1,6 @@
 import { graphFetch, graphFetchAllPages } from "./graphClient";
 import { getFormsSite, resolveListId } from "./sites";
+import { graphScopes } from "../auth/msalConfig";
 
 export interface ListItem<TFields> {
   /** SharePoint's own item id (string) — internal only, never used as a business key. */
@@ -37,14 +38,16 @@ export async function queryListItems<TFields>(
 
   return graphFetchAllPages<ListItem<TFields>>(
     `/sites/${siteId}/lists/${listId}/items?${params.toString()}`,
-    { headers: { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" } }
+    { headers: { Prefer: "HonorNonIndexedQueriesWarningMayFailRandomly" }, scopes: graphScopes.sites }
   );
 }
 
 export async function getListItem<TFields>(listName: string, itemId: string): Promise<ListItem<TFields>> {
   const { siteId } = await getFormsSite();
   const listId = await getListId(listName);
-  return graphFetch<ListItem<TFields>>(`/sites/${siteId}/lists/${listId}/items/${itemId}?expand=fields`);
+  return graphFetch<ListItem<TFields>>(`/sites/${siteId}/lists/${listId}/items/${itemId}?expand=fields`, {
+    scopes: graphScopes.sites,
+  });
 }
 
 export async function createListItem<TFields extends object>(
@@ -56,6 +59,7 @@ export async function createListItem<TFields extends object>(
   return graphFetch<ListItem<TFields>>(`/sites/${siteId}/lists/${listId}/items`, {
     method: "POST",
     body: { fields },
+    scopes: graphScopes.sites,
   });
 }
 
@@ -69,11 +73,15 @@ export async function updateListItem<TFields extends object>(
   await graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}/fields`, {
     method: "PATCH",
     body: fields,
+    scopes: graphScopes.sites,
   });
 }
 
 export async function deleteListItem(listName: string, itemId: string): Promise<void> {
   const { siteId } = await getFormsSite();
   const listId = await getListId(listName);
-  await graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}`, { method: "DELETE" });
+  await graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}`, {
+    method: "DELETE",
+    scopes: graphScopes.sites,
+  });
 }

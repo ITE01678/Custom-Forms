@@ -10,6 +10,19 @@ import {
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
 
+/** Decodes a JWT's payload without verifying it — good enough to read the
+ *  `scp` (delegated scopes) claim for debugging. Never use this for
+ *  anything security-relevant; it doesn't check the signature. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const [, payload] = token.split(".");
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Acquire a delegated access token for the given scopes, for the currently
  * active (signed-in) account. Every Graph call in this app uses the LOGGED-IN
@@ -23,6 +36,22 @@ async function getDelegatedToken(scopes: string[]): Promise<string> {
   }
   try {
     const result = await msalInstance.acquireTokenSilent({ scopes, account });
+    if (scopes.includes("Sites.ReadWrite.All")) {
+      // Temporary diagnostic logging — remove once the SharePoint 403 issue
+      // is confirmed fixed. Logs the ACTUAL scopes present in the token's
+      // own `scp` claim, not just what was requested — the two can differ
+      // from what the portal shows as "granted" for reasons that only show
+      // up here.
+      const payload = decodeJwtPayload(result.accessToken);
+      // eslint-disable-next-line no-console
+      console.info("[auth-debug] token for Sites.ReadWrite.All call", {
+        requestedScopes: scopes,
+        actualScopeClaim: payload?.scp ?? payload?.roles ?? "(none found in token)",
+        aud: payload?.aud,
+        tid: payload?.tid,
+        upn: payload?.upn ?? payload?.unique_name ?? payload?.preferred_username,
+      });
+    }
     return result.accessToken;
   } catch (err) {
     if (err instanceof InteractionRequiredAuthError) {

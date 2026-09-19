@@ -1,4 +1,5 @@
 import { useAuth } from "../auth/useAuth";
+import { stashCurrentPath } from "../auth/postLoginRedirect";
 
 const FEATURES = [
   {
@@ -75,7 +76,13 @@ export function Login() {
         {isAuthenticated ? (
           <p className="landing__signed-in">You're already signed in — loading your forms…</p>
         ) : (
-          <button className="btn-primary landing__cta" onClick={() => login()}>
+          <button
+            className="btn-primary landing__cta"
+            onClick={() => {
+              stashCurrentPath();
+              login();
+            }}
+          >
             Sign in with Microsoft
           </button>
         )}

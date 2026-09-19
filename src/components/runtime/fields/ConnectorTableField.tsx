@@ -178,30 +178,32 @@ function ConnectorGridReadOnly({
         {field.label}
         {badge}
       </label>
-      <table className="response-grid">
-        <thead>
-          <tr>
-            {columns.map((c) => (
-              <th key={c.key}>{c.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
+      <div className="table-scroll">
+        <table className="response-grid">
+          <thead>
             <tr>
-              <td colSpan={columns.length}>No records found.</td>
+              {columns.map((c) => (
+                <th key={c.key}>{c.label}</th>
+              ))}
             </tr>
-          ) : (
-            rows.map((row, i) => (
-              <tr key={i}>
-                {columns.map((c) => (
-                  <td key={c.key}>{String(row[c.key] ?? "")}</td>
-                ))}
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length}>No records found.</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              rows.map((row, i) => (
+                <tr key={i}>
+                  {columns.map((c) => (
+                    <td key={c.key}>{String(row[c.key] ?? "")}</td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       {field.helpText && <span className="fill-field__help">{field.helpText}</span>}
       {error && <div className="error-text">{error}</div>}
     </div>
@@ -232,37 +234,39 @@ function ManualGrid({
         {badge}
       </label>
       {warning && <p className="error-text">{warning}</p>}
-      <table className="response-grid">
-        <thead>
-          <tr>
-            {columns.map((c) => (
-              <th key={c.key}>{c.label}</th>
-            ))}
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
+      <div className="table-scroll">
+        <table className="response-grid">
+          <thead>
+            <tr>
               {columns.map((c) => (
-                <td key={c.key}>
-                  <input
-                    value={String(row[c.key] ?? "")}
-                    onChange={(e) => {
-                      const next = [...rows];
-                      next[i] = { ...row, [c.key]: e.target.value };
-                      onChange(next);
-                    }}
-                  />
-                </td>
+                <th key={c.key}>{c.label}</th>
               ))}
-              <td>
-                <button onClick={() => onChange(rows.filter((_, j) => j !== i))}>✕</button>
-              </td>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i}>
+                {columns.map((c) => (
+                  <td key={c.key}>
+                    <input
+                      value={String(row[c.key] ?? "")}
+                      onChange={(e) => {
+                        const next = [...rows];
+                        next[i] = { ...row, [c.key]: e.target.value };
+                        onChange(next);
+                      }}
+                    />
+                  </td>
+                ))}
+                <td>
+                  <button onClick={() => onChange(rows.filter((_, j) => j !== i))}>✕</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <button onClick={() => onChange([...rows, Object.fromEntries(columns.map((c) => [c.key, ""]))])}>
         + Add row
       </button>

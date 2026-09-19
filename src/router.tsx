@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthGate } from "./auth/AuthGate";
 import { useAuth } from "./auth/useAuth";
@@ -12,25 +13,21 @@ import { SyncHealthPage } from "./pages/admin/SyncHealthPage";
 import { ConnectorsPage } from "./pages/admin/ConnectorsPage";
 
 /**
- * Root route: shows the marketing/landing page (Login) to a signed-out
- * visitor instead of AuthGate's usual immediate redirect-to-Microsoft —
- * AuthGate auto-triggers `login()` the instant it mounts, so mounting it
- * directly at "/" meant NO signed-out visitor could ever actually see the
- * landing page (or its own "Sign in" button) — they were bounced to
- * Microsoft's login before it rendered, every single time. Every other
- * route still uses AuthGate directly: a shared form link, the builder,
- * etc. should auto-redirect a signed-out visitor straight to sign-in
- * rather than show them a marketing page they didn't ask for — only the
- * root path needed this distinction.
+ * Shows the marketing/landing page (Login) to a signed-out visitor instead
+ * of AuthGate's usual immediate redirect-to-Microsoft — AuthGate
+ * auto-triggers `login()` the instant it mounts, which meant a signed-out
+ * visitor could never actually see the landing page (or its own "Sign in"
+ * button) first: they were bounced to Microsoft's login before it
+ * rendered, every single time. Used for the root path and for a shared
+ * form-fill link — both are places a genuinely new (not-yet-signed-in)
+ * visitor is likely to land. Builder/admin routes still use AuthGate
+ * directly: there's no marketing value in showing an internal admin a
+ * landing page before a builder link they were already sent.
  */
-function RootRoute() {
+function LandingOrAuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Login />;
-  return (
-    <AuthGate>
-      <Dashboard />
-    </AuthGate>
-  );
+  return <AuthGate>{children}</AuthGate>;
 }
 
 /**
@@ -46,7 +43,14 @@ export function AppRouter() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route path="/" element={<RootRoute />} />
+        <Route
+          path="/"
+          element={
+            <LandingOrAuthGate>
+              <Dashboard />
+            </LandingOrAuthGate>
+          }
+        />
         <Route
           path="/builder/:formId"
           element={
@@ -58,17 +62,17 @@ export function AppRouter() {
         <Route
           path="/f/:slug"
           element={
-            <AuthGate>
+            <LandingOrAuthGate>
               <FillPage />
-            </AuthGate>
+            </LandingOrAuthGate>
           }
         />
         <Route
           path="/f/:slug/submitted"
           element={
-            <AuthGate>
+            <LandingOrAuthGate>
               <SubmittedPage />
-            </AuthGate>
+            </LandingOrAuthGate>
           }
         />
         <Route

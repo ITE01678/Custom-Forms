@@ -4,6 +4,7 @@ import { FieldRenderer } from "./fields/FieldRenderer";
 import { AutofillField } from "./fields/AutofillField";
 import { ConnectorTableField } from "./fields/ConnectorTableField";
 import { FileUploadField } from "./fields/FileUploadField";
+import { GraphImage } from "../common/GraphImage";
 import { getVisibleFields, resolveFirstSectionId, resolveNextSectionId, shuffleSectionOrder } from "../../formsSchema/branching";
 import { validateFields, type FieldError } from "../../formsSchema/validation";
 import { useAuth } from "../../auth/useAuth";
@@ -165,11 +166,7 @@ export function FillRunner({
       )}
 
       {currentSection.imageUrl && (
-        <img
-          src={currentSection.imageUrl}
-          alt=""
-          style={{ width: "100%", borderRadius: "var(--radius-sm)", marginBottom: "1rem" }}
-        />
+        <GraphImage className="fill-runner__section-image" src={currentSection.imageUrl} alt="" />
       )}
       <h2 className="fill-runner__section-title">{currentSection.title}</h2>
       {currentSection.description && <p className="fill-runner__section-desc">{currentSection.description}</p>}

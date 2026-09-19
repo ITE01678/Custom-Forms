@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth";
 import { getRedirectError, msalInstance } from "./msalInstance";
+import { consumeStashedPath } from "./postLoginRedirect";
 
 const ATTEMPTED_KEY = "customForms.authRedirectAttempted";
 
@@ -22,6 +24,7 @@ const ATTEMPTED_KEY = "customForms.authRedirectAttempted";
 export function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated, isAllowedDomain, email, login, logout } = useAuth();
   const [authError, setAuthError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Temporary diagnostic logging — remove once the redirect-loop issue is
@@ -36,6 +39,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     if (isAuthenticated) {
       sessionStorage.removeItem(ATTEMPTED_KEY);
+      // Returning from an interactive login that stashed a deep link (e.g. a
+      // shared form link opened signed-out) — send them back there instead
+      // of wherever the redirect happened to land (see postLoginRedirect.ts
+      // for why MSAL's round trip doesn't preserve this on its own).
+      const stashed = consumeStashedPath();
+      if (stashed && stashed !== window.location.hash.slice(1)) {
+        navigate(stashed, { replace: true });
+      }
       return;
     }
 
@@ -70,7 +81,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     sessionStorage.setItem(ATTEMPTED_KEY, "1");
     login();
-  }, [isAuthenticated, login]);
+  }, [isAuthenticated, login, navigate]);
 
   function retry() {
     sessionStorage.removeItem(ATTEMPTED_KEY);

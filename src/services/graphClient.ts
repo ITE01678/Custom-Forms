@@ -28,8 +28,19 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
  * active (signed-in) account. Every Graph call in this app uses the LOGGED-IN
  * USER's own token — there is no server, so there's no app-only/client-
  * credentials path here (see SETUP.md / plan for the rationale).
+ *
+ * `interactive` (default true) controls what happens when a silent refresh
+ * needs user interaction (new scope, revoked consent, expired session): a
+ * popup is fine for a call the user just triggered directly, but a call
+ * running passively in the background (e.g. an <img> load resolving a
+ * SharePoint reference) must NOT pop a login window out of nowhere — a
+ * popup opened from a non-user-gesture effect can be silently blocked by
+ * the browser, or sit waiting for a window the user never notices, hanging
+ * the calling promise forever. Passing `interactive: false` throws
+ * immediately instead, so the caller's own error handling (e.g. GraphImage's
+ * "couldn't load" message) fires right away.
  */
-async function getDelegatedToken(scopes: string[]): Promise<string> {
+async function getDelegatedToken(scopes: string[], interactive = true): Promise<string> {
   const account = msalInstance.getActiveAccount();
   if (!account) {
     throw new GraphAuthError("No signed-in account — cannot acquire a Graph token.");
@@ -55,6 +66,7 @@ async function getDelegatedToken(scopes: string[]): Promise<string> {
     return result.accessToken;
   } catch (err) {
     if (err instanceof InteractionRequiredAuthError) {
+      if (!interactive) throw err;
       // Silent refresh needs interaction (new scope, revoked consent, expired
       // session). Use a popup here rather than a redirect so we don't blow
       // away in-progress form state mid-service-call.
@@ -199,13 +211,19 @@ export async function graphUploadBinary<T = unknown>(
  * private window never has). Content-Disposition/type are irrelevant to the
  * caller here; this always resolves to raw bytes.
  */
-export async function graphFetchBinary(path: string, opts: { scopes?: string[]; retries?: number } = {}): Promise<Blob> {
+export async function graphFetchBinary(
+  path: string,
+  opts: { scopes?: string[]; retries?: number; interactive?: boolean } = {}
+): Promise<Blob> {
   const scopes = opts.scopes ?? ["User.Read"];
   const maxRetries = opts.retries ?? 3;
   const url = path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const token = await getDelegatedToken(scopes);
+    // Non-interactive by default — see getDelegatedToken's doc comment.
+    // Binary downloads back an <img>/CSS background; they must never pop a
+    // login window out of nowhere.
+    const token = await getDelegatedToken(scopes, opts.interactive ?? false);
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 
     if (res.status === 429 || res.status === 503) {

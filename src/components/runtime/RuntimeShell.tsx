@@ -18,7 +18,9 @@ export function RuntimeShell({ title, description, branding, children }: Props) 
   const bg = branding.background;
   // CSS background-image can't take a graph-image:// reference directly —
   // resolve it the same way GraphImage does before it goes into inline style.
-  const { url: resolvedBgImageUrl } = useResolvedImageUrl(bg?.type === "image" ? bg.imageUrl : undefined);
+  const { url: resolvedBgImageUrl, error: bgImageError } = useResolvedImageUrl(
+    bg?.type === "image" ? bg.imageUrl : undefined
+  );
 
   const themeStyle: CSSProperties = { "--accent": branding.themeColor || DEFAULT_ACCENT } as CSSProperties;
   if (bg?.type === "color" && bg.color) {
@@ -37,6 +39,9 @@ export function RuntimeShell({ title, description, branding, children }: Props) 
 
         <div className="runtime__card">
           <div className="runtime__brand-bar" />
+          {bg?.type === "image" && bgImageError && (
+            <p className="graph-image-error">⚠ Couldn't load the background image</p>
+          )}
           {branding.logoUrl && <GraphImage className="runtime__logo" src={branding.logoUrl} alt="" />}
 
           {title && <h1 className="runtime__title">{title}</h1>}

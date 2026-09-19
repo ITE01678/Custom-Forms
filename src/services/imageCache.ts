@@ -23,11 +23,16 @@ export async function resolveDisplayUrl(src: string | undefined): Promise<string
   if (pending) return pending;
 
   const promise = graphFetchBinary(`/drives/${ref.driveId}/root:/${ref.itemPath}:/content`, {
-    // Sites.Manage.All alone has already proven insufficient for at least
-    // one class of Graph sub-resource access in this tenant (the Excel
-    // Workbook API) — use the broader excel scope set here too rather than
-    // assuming a plain driveItem content read is unaffected.
-    scopes: graphScopes.excel,
+    // Plain driveItem content GET — the Excel Workbook API's tenant quirk
+    // (which needed the broader Sites.ReadWrite.All scope) is specific to
+    // /workbook/... calls; services/excel.ts's own comments confirm plain
+    // /content GET/PUT already works fine under Sites.Manage.All alone
+    // throughout this app (templates, attachments, version snapshots).
+    // Sites.ReadWrite.All is the newer, less-exercised scope and more
+    // likely to still need an interactive consent prompt on some sessions —
+    // stick to the well-exercised scope here (this call is also
+    // non-interactive by default; see graphFetchBinary/getDelegatedToken).
+    scopes: graphScopes.sites,
   }).then(
     (blob) => {
       const blobUrl = URL.createObjectURL(blob);

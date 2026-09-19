@@ -975,6 +975,12 @@ textarea {
   margin-bottom: 1.25rem;
 }
 
+.fill-runner__section-image {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  margin-bottom: 1rem;
+}
+
 .fill-runner__section-title {
   margin: 0 0 0.25rem;
   font-size: 1.25rem;
@@ -1613,5 +1619,34 @@ textarea {
 
   .mockup-window {
     max-width: 100%;
+  }
+
+  .runtime__container {
+    padding: 1.5rem 0.9rem 3rem;
+  }
+
+  .runtime__cover {
+    max-height: 140px;
+    margin-bottom: -1.75rem;
+  }
+
+  .runtime__card {
+    padding: 1.25rem;
+  }
+
+  .runtime__brand-bar {
+    margin: -1.25rem -1.25rem 1.25rem;
+  }
+
+  .runtime__title {
+    font-size: 1.4rem;
+  }
+
+  .fill-runner__nav {
+    flex-wrap: wrap;
+  }
+
+  .fill-runner__nav button {
+    flex: 1 1 auto;
   }
 }

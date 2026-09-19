@@ -95,6 +95,12 @@ export interface GraphRequestOptions {
   /** Extra headers to merge in — e.g. `Prefer: HonorNonIndexedQueriesWarningMayFailRandomly`
    *  for SharePoint List $filter queries on non-indexed columns. */
   headers?: Record<string, string>;
+  /** Default true. Set false for calls that must never pop an interactive
+   *  MSAL window if silent token refresh fails — e.g. a best-effort
+   *  notification-email send that's wrapped in try/catch by the caller and
+   *  must fail fast, not hang waiting on a popup nobody asked for. See
+   *  getDelegatedToken's doc comment. */
+  interactive?: boolean;
 }
 
 /**
@@ -108,7 +114,7 @@ export async function graphFetch<T>(path: string, opts: GraphRequestOptions = {}
   const url = opts.absoluteUrl || path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const token = await getDelegatedToken(scopes);
+    const token = await getDelegatedToken(scopes, opts.interactive ?? true);
 
     const res = await fetch(url, {
       method: opts.method ?? "GET",

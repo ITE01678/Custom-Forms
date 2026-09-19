@@ -18,7 +18,7 @@ interface Props {
 }
 
 const CHOICE_TYPES = new Set(["singleChoice", "multiChoice"]);
-const TEXT_TYPES = new Set(["shortText", "longText", "email"]);
+const TEXT_TYPES = new Set(["shortText", "longText", "email", "approverEmail"]);
 
 const PATTERN_PRESETS: { label: string; pattern?: string }[] = [
   { label: "No format restriction" },

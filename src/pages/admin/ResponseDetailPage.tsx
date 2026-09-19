@@ -5,12 +5,23 @@ import { getFormById, getFormVersion } from "../../services/forms";
 import { flattenFields, getResponseByRowIndex } from "../../services/excel";
 import { getIndexByResponseId } from "../../services/responseIndex";
 import { getEntriesForResponse } from "../../services/auditLog";
+import { getRoutingState } from "../../services/responseRouting";
 import { updateResponse } from "../../services/responses";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { formatAnswer } from "../../lib/formatAnswer";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { AppTopbar } from "../../components/layout/AppTopbar";
-import type { AnswerValue, AuditEntry, FormDefinition, FormResponse } from "../../formsSchema/types";
+import type { AnswerValue, AuditEntry, FormDefinition, FormResponse, ResponseRoutingState } from "../../formsSchema/types";
+
+const ACTION_LABELS: Record<AuditEntry["action"], string> = {
+  submit: "Submitted",
+  "self-edit": "Edited by respondent",
+  "admin-edit": "Edited by admin",
+  "approver-edit": "Edited by approver",
+  route: "Sent for approval",
+  approve: "Approved",
+  reject: "Rejected",
+};
 
 export function ResponseDetailPage() {
   const { formId, responseId } = useParams<{ formId: string; responseId: string }>();
@@ -21,6 +32,7 @@ export function ResponseDetailPage() {
   const [response, setResponse] = useState<FormResponse | null>(null);
   const [rowIndex, setRowIndex] = useState<number | null>(null);
   const [auditTrail, setAuditTrail] = useState<AuditEntry[]>([]);
+  const [routingState, setRoutingState] = useState<ResponseRoutingState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -49,6 +61,8 @@ export function ResponseDetailPage() {
       setPinnedForm(pinned);
 
       setAuditTrail(await getEntriesForResponse(formId, responseId));
+      const routingEntry = await getRoutingState(formId, responseId);
+      setRoutingState(routingEntry?.state ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -114,6 +128,16 @@ export function ResponseDetailPage() {
         {response.submittedAt && ` on ${new Date(response.submittedAt).toLocaleString()}`}
       </p>
 
+      {routingState && form.routing && (
+        <p className={`status-pill ${routingState.status === "approved" ? "status-pill--published" : ""}`}>
+          {routingState.status === "in-progress"
+            ? `Awaiting approval — stage ${routingState.currentStepIndex + 1} of ${form.routing.steps.length}`
+            : routingState.status === "approved"
+              ? "Approved"
+              : "Rejected"}
+        </p>
+      )}
+
       {canAdminEdit && <button onClick={() => setEditing(true)}>Edit this response</button>}
 
       <div className="panel">
@@ -147,7 +171,7 @@ export function ResponseDetailPage() {
                   <tr key={entry.id}>
                     <td>{new Date(entry.at).toLocaleString()}</td>
                     <td>{entry.byUpn}</td>
-                    <td>{entry.action}</td>
+                    <td>{ACTION_LABELS[entry.action] ?? entry.action}</td>
                     <td>
                       {entry.changedFields.length === 0
                         ? "—"

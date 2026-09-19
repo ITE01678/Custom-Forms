@@ -6,6 +6,7 @@ const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   shortText: "Short answer",
   longText: "Long answer",
   email: "Email",
+  approverEmail: "Approver email",
   singleChoice: "Choice (single)",
   multiChoice: "Choice (multiple)",
   date: "Date",
@@ -27,7 +28,7 @@ function newField(type: FieldType, order: number): FormField {
     fillMode: "manual",
     validation: { required: false },
   };
-  if (type === "email") {
+  if (type === "email" || type === "approverEmail") {
     base.validation = { required: false, pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" };
   }
   if (type === "singleChoice" || type === "multiChoice") {

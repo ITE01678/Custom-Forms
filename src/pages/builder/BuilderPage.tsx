@@ -8,6 +8,7 @@ import { BrandingPanel } from "../../components/builder/BrandingPanel";
 import { SharingPanel } from "../../components/builder/SharingPanel";
 import { EditPolicyPanel } from "../../components/builder/EditPolicyPanel";
 import { FormSettingsPanel } from "../../components/builder/FormSettingsPanel";
+import { RoutingPanel } from "../../components/builder/RoutingPanel";
 import { BranchingPanel } from "../../components/builder/BranchingPanel";
 import { PreviewModal } from "../../components/builder/PreviewModal";
 import { AppTopbar } from "../../components/layout/AppTopbar";
@@ -145,6 +146,7 @@ export function BuilderPage() {
         <>
           <FormSettingsPanel form={form} />
           <EditPolicyPanel form={form} />
+          <RoutingPanel form={form} />
         </>
       )}
 

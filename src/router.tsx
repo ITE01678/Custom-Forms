@@ -7,6 +7,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { BuilderPage } from "./pages/builder/BuilderPage";
 import { FillPage } from "./pages/fill/FillPage";
 import { SubmittedPage } from "./pages/fill/SubmittedPage";
+import { ApprovePage } from "./pages/fill/ApprovePage";
 import { ResponsesPage } from "./pages/admin/ResponsesPage";
 import { ResponseDetailPage } from "./pages/admin/ResponseDetailPage";
 import { SyncHealthPage } from "./pages/admin/SyncHealthPage";
@@ -72,6 +73,14 @@ export function AppRouter() {
           element={
             <LandingOrAuthGate>
               <SubmittedPage />
+            </LandingOrAuthGate>
+          }
+        />
+        <Route
+          path="/f/:slug/approve/:responseId"
+          element={
+            <LandingOrAuthGate>
+              <ApprovePage />
             </LandingOrAuthGate>
           }
         />

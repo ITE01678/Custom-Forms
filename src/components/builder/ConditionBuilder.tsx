@@ -64,6 +64,15 @@ const OPERATORS_BY_TYPE: Record<FieldType, { value: Operator; label: string }[]>
     { value: "isEmpty", label: "is empty" },
     { value: "isNotEmpty", label: "is not empty" },
   ],
+  approverEmail: [
+    { value: "eq", label: "is" },
+    { value: "neq", label: "is not" },
+    { value: "contains", label: "contains" },
+    { value: "notContains", label: "doesn't contain" },
+    ...TEXT_LENGTH_OPERATORS,
+    { value: "isEmpty", label: "is empty" },
+    { value: "isNotEmpty", label: "is not empty" },
+  ],
   singleChoice: [
     { value: "eq", label: "is" },
     { value: "neq", label: "is not" },

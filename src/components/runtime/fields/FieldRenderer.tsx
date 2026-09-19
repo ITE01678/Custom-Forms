@@ -32,7 +32,8 @@ export function FieldRenderer({ field, value, onChange, error }: Props) {
 
   const maxLength = field.validation?.maxLength;
   const showCounter =
-    maxLength !== undefined && (field.type === "shortText" || field.type === "longText" || field.type === "email");
+    maxLength !== undefined &&
+    (field.type === "shortText" || field.type === "longText" || field.type === "email" || field.type === "approverEmail");
 
   return (
     <div className="fill-field">
@@ -72,6 +73,7 @@ function renderInput(
       );
 
     case "email":
+    case "approverEmail":
       return (
         <input
           id={field.id}

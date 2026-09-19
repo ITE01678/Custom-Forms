@@ -107,6 +107,11 @@ export const loginRequest = {
   // instead), so Sites.ReadWrite.All isn't actually required by this app —
   // kept here only because revoking it isn't worth another admin-consent
   // round trip; Sites.Manage.All alone covers everything the app does now.
+  // Mail.Send: lets the approval-routing feature notify the next
+  // approver/the original respondent — there's no service account, so it
+  // always sends as whichever signed-in user just took the action (submit/
+  // approve/reject), via POST /me/sendMail. Needs one-time admin consent
+  // (see SETUP.md), same as the other high-privilege scopes here.
   scopes: [
     "openid",
     "profile",
@@ -115,6 +120,7 @@ export const loginRequest = {
     "User.Read.All",
     "Sites.Manage.All",
     "Sites.ReadWrite.All",
+    "Mail.Send",
   ],
   // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
   // above. RedirectRequest's type omits a per-request responseMode field entirely,
@@ -129,4 +135,5 @@ export const graphScopes = {
   // Excel Workbook API (services/excel.ts) — see the comment on loginRequest
   // above for why this needs to be ReadWrite.All specifically, not Manage.All.
   excel: ["Sites.ReadWrite.All", "Sites.Manage.All"],
+  mail: ["Mail.Send"],
 };

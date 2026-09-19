@@ -39,6 +39,14 @@ Then, on the new registration:
     client-side instead (see `services/excel.ts`), which only needs
     `Sites.Manage.All` above. If you already added `Sites.ReadWrite.All`
     it's harmless to leave in place, just no longer required.
+  - `Mail.Send` (lets the optional "send to" approval-routing feature notify
+    the next approver, or the original respondent once a chain resolves —
+    **needs admin consent**, once). There's no service account: a
+    notification always sends as whichever signed-in user just took the
+    action (submitted / approved / rejected), via their own mailbox. If a
+    send fails (missing consent, offline, etc.) the underlying submit/
+    approve/reject action still succeeds — the email is best-effort only,
+    with no retry queue in this version.
 - **Authentication**: confirm "Allow public client flows" is enabled if prompted
   (this is a public client — no secret, nothing to protect on a static site)
 - Restrict who can sign in: **Enterprise applications → Custom Forms → Properties →
@@ -60,7 +68,9 @@ the first time it successfully talks to that site (`services/bootstrap.ts`):
 - Lists: `Forms` (metadata + draft schema JSON), `SyncQueue` (durability layer),
   `ResponseIndex` (Excel row-index cache), `AuditLog` (edit history),
   `ConnectorConfigs` (data-source connector definitions), `Drafts`
-  ("save and finish later," keyed by form + submitter email).
+  ("save and finish later," keyed by form + submitter email), `ResponseRouting`
+  (approval-chain state per response, for forms with "send to" routing
+  configured — see the Approval routing section below).
 - Document libraries: `ResponseWorkbooks` (one `.xlsx` per form — **created at
   Publish time, not before**), `FormVersions` (immutable JSON snapshot per
   publish), and `Attachments` (fileUpload field uploads).
@@ -180,6 +190,37 @@ Automate flow** with an HTTP request trigger holding the connection/secret.
 Form fields then reference a connector by name from the builder's field
 settings ("Auto-fill from a data source connector"). See section 3 above for
 the concrete Excel-file walkthrough.
+
+## 7. Approval routing / "send to" (optional, per form)
+
+In the builder's **Settings** tab, **Send to / approval routing** lets a
+form route a submitted response to one or more people for review before
+it's considered final:
+
+- **Send to one approver** / **Send to several people** (first to act
+  completes it) / **Sequential chain** (one stage at a time, each stage
+  only opens once the previous one has acted).
+- Each stage's recipient(s) are either typed in directly by the designer, or
+  — if the designer checks "Let the respondent choose who reviews this" —
+  answered by the respondent via a new **Approver email** field type placed
+  anywhere in the form.
+- A recipient gets a best-effort notification email (requires the
+  `Mail.Send` permission from step 1) with a link to a pre-filled, editable
+  copy of the response, which they can Approve (advances to the next stage,
+  or resolves the chain) or Reject (stops the chain).
+- There is no bearer token in that link — the responseId is a lookup key
+  only. Access is checked by matching the *signed-in* account's email
+  against the current stage's recipient list, same security model as
+  everything else in this app (org-domain-restricted MSAL sign-in is the
+  actual boundary). If the wrong account is signed in, the page says so
+  plainly rather than silently failing.
+- Notification email is best-effort only in this version: if it fails to
+  send (missing consent, the acting user's browser closing mid-request,
+  etc.) the underlying submit/approve/reject action still succeeds, but the
+  next person in the chain won't be notified automatically — there's no
+  retry queue for outbound mail (unlike `SyncQueue` for Excel writes). An
+  admin can still see exactly where a response stands via its **Approval
+  status** on the response detail page.
 
 ---
 

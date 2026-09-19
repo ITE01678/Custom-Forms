@@ -15,6 +15,7 @@ const ADDABLE_FIELD_TYPES: FieldType[] = [
   "shortText",
   "longText",
   "email",
+  "approverEmail",
   "singleChoice",
   "multiChoice",
   "date",

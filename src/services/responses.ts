@@ -9,10 +9,36 @@ import {
 import { enqueueWrite, markDone, markFailed } from "./syncQueue";
 import { getIndexBySubmitter, upsertIndex } from "./responseIndex";
 import { addAuditEntry } from "./auditLog";
-import type { AnswerValue, AuditEntry, FormDefinition, FormResponse } from "../formsSchema/types";
+import {
+  advanceRoutingState,
+  getCurrentStep,
+  getRoutingState,
+  initRoutingState,
+  resolveStepRecipients,
+  saveRoutingState,
+} from "./responseRouting";
+import { sendApprovalRequest, sendRoutingOutcomeNotification } from "./routingMail";
+import type { AnswerValue, AuditEntry, FormDefinition, FormResponse, ResponseRoutingState } from "../formsSchema/types";
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Best-effort: notify whoever the current step's recipients resolve to.
+ *  Never throws — a failed notification must not make the caller's
+ *  submit/approve/reject action look like it failed (see routingMail.ts). */
+async function notifyCurrentStep(form: FormDefinition, response: FormResponse): Promise<void> {
+  const step = getCurrentStep(form, response.routing);
+  if (!step) return;
+  const recipients = resolveStepRecipients(step, response.answers);
+  await Promise.all(
+    recipients.map((email) =>
+      sendApprovalRequest(email, form, response.id).catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn(`[routing] Could not email approval request to ${email}:`, err);
+      })
+    )
+  );
 }
 
 function diffAnswers(
@@ -85,6 +111,31 @@ export async function submitResponse(
         action: "submit",
         changedFields: Object.entries(answers).map(([fieldId, newValue]) => ({ fieldId, oldValue: null, newValue })),
       });
+
+      // Deliberately OUTSIDE the retry unit above: appendResponseRow has no
+      // idempotency check, so if routing kickoff threw from inside this try
+      // block, the catch below would retry the whole thing on the next loop
+      // iteration and duplicate the row. Routing kickoff is its own
+      // best-effort step — a response is fully "submitted" whether or not
+      // its (optional) approval chain successfully started.
+      try {
+        const routing = await initRoutingState(form, response.id);
+        if (routing) {
+          response.routing = routing;
+          await addAuditEntry({
+            formId: form.id,
+            responseId: response.id,
+            byEmail: respondentUpn,
+            action: "route",
+            changedFields: [],
+          });
+          await notifyCurrentStep(form, response);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[routing] Could not start approval routing for this response:", err);
+      }
+
       return response;
     } catch (err) {
       if (attempt === maxAttempts) {
@@ -124,6 +175,11 @@ export async function updateResponse(params: {
   answers: Record<string, AnswerValue>;
   editorEmail: string;
   reason?: string;
+  /** Set by the approver-review flow (ApprovePage) — an approver editing
+   *  fields is neither the original respondent nor a form admin, so the
+   *  usual self-edit/admin-edit binary doesn't fit. Omit for the normal
+   *  self-edit/admin-edit paths. */
+  actionOverride?: "approver-edit";
 }): Promise<FormResponse> {
   const { form, existing, answers, editorEmail } = params;
   const changedFields = diffAnswers(existing.answers, answers);
@@ -152,7 +208,7 @@ export async function updateResponse(params: {
         formId: form.id,
         responseId: updated.id,
         byEmail: editorEmail,
-        action: editorEmail === updated.respondentUpn ? "self-edit" : "admin-edit",
+        action: params.actionOverride ?? (editorEmail === updated.respondentUpn ? "self-edit" : "admin-edit"),
         changedFields,
         reason: params.reason,
       });
@@ -171,4 +227,49 @@ export async function updateResponse(params: {
 
 export async function getResponsesForForm(form: FormDefinition): Promise<ResponseRow[]> {
   return getResponseRows(form);
+}
+
+/**
+ * Records an approver's decision (approve/reject) on a response — advances
+ * or resolves the routing chain, logs it to the audit trail, and
+ * best-effort notifies whoever needs to know next (the next step's
+ * recipients, or the original respondent once the chain resolves). Field
+ * edits an approver makes alongside their decision go through the normal
+ * `updateResponse` path first (with `actionOverride: "approver-edit"`) —
+ * this function only manages the routing state machine itself.
+ */
+export async function actOnRouting(params: {
+  form: FormDefinition;
+  response: FormResponse;
+  actorEmail: string;
+  action: "approved" | "rejected";
+  reason?: string;
+}): Promise<ResponseRoutingState> {
+  const { form, response, actorEmail, action, reason } = params;
+  const entry = await getRoutingState(form.id, response.id);
+  if (!entry) throw new Error("This response has no approval routing in progress.");
+
+  const nextState = advanceRoutingState(form, entry.state, actorEmail, action, reason);
+  await saveRoutingState(entry.itemId, nextState);
+
+  await addAuditEntry({
+    formId: form.id,
+    responseId: response.id,
+    byEmail: actorEmail,
+    action: action === "approved" ? "approve" : "reject",
+    changedFields: [],
+    reason,
+  });
+
+  const updatedResponse: FormResponse = { ...response, routing: nextState };
+  if (nextState.status === "in-progress") {
+    await notifyCurrentStep(form, updatedResponse);
+  } else {
+    await sendRoutingOutcomeNotification(response.respondentUpn, form, response.id, nextState.status, reason).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn(`[routing] Could not email outcome to ${response.respondentUpn}:`, err);
+    });
+  }
+
+  return nextState;
 }

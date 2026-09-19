@@ -35,6 +35,14 @@ interface Props {
    *  its own — the caller decides what happens after a successful submit,
    *  which is what lets the builder's Preview mode reuse this unchanged). */
   onSubmit: (answers: Record<string, AnswerValue>, reason?: string) => Promise<void>;
+  /** An extra button next to Submit on the last step — used by the approver
+   *  review flow for "Reject" (approving reuses the normal onSubmit path).
+   *  Deliberately skips field validation (an approver should be able to
+   *  reject even if a field looks invalid/incomplete), unlike onSubmit. */
+  secondaryAction?: {
+    label: string;
+    onClick: (answers: Record<string, AnswerValue>) => Promise<void>;
+  };
 }
 
 /**
@@ -52,6 +60,7 @@ export function FillRunner({
   requireReason,
   onSaveDraft,
   onSubmit,
+  secondaryAction,
 }: Props) {
   const { email } = useAuth();
 
@@ -152,6 +161,19 @@ export function FillRunner({
     }
   }
 
+  async function handleSecondaryAction() {
+    if (!secondaryAction) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await secondaryAction.onClick(answers);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const totalSections = Math.max(form.sections.length, 1);
   const progress = Math.min(1, visitedSectionIds.length / totalSections);
 
@@ -203,6 +225,11 @@ export function FillRunner({
         {onSaveDraft && (
           <button onClick={handleSaveDraft} disabled={savingDraft || submitting}>
             {savingDraft ? "Saving…" : draftSaved ? "Saved ✓" : "Save and finish later"}
+          </button>
+        )}
+        {isLastStep && secondaryAction && (
+          <button onClick={handleSecondaryAction} disabled={submitting}>
+            {secondaryAction.label}
           </button>
         )}
         <button className="btn-primary" onClick={handleNext} disabled={submitting}>

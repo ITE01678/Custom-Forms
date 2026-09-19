@@ -17,7 +17,28 @@ export interface FormDefinition {
   editPolicy: EditPolicyConfig;
   sharing: SharingConfig;
   settings: FormSettings;
+  /** Optional "send to" approval chain — undefined/mode "none" means no
+   *  routing, matching every form that existed before this was added. */
+  routing?: RoutingConfig;
   sections: FormSection[];
+}
+
+/** One step in an approval chain — either a fixed list the designer typed
+ *  in, or (when the designer allows it) read from the respondent's own
+ *  answer to an "approverEmail"-type field placed in the form. */
+export interface RoutingStep {
+  id: string;
+  recipientSource: "designer" | "respondent-field";
+  recipients?: string[]; // used when recipientSource === "designer"
+  fieldId?: string; // used when recipientSource === "respondent-field" — an approverEmail field's id
+}
+
+export interface RoutingConfig {
+  /** "single"/"multiple" both use steps[0] — "multiple" just means more than
+   *  one recipient in that one step, first to act completes it. "sequential"
+   *  uses the full ordered `steps` list, one recipient set per stage. */
+  mode: "none" | "single" | "multiple" | "sequential";
+  steps: RoutingStep[];
 }
 
 /** MS-Forms-style form-level settings (Settings tab). */
@@ -69,6 +90,7 @@ export type FieldType =
   | "shortText"
   | "longText"
   | "email"
+  | "approverEmail"
   | "singleChoice"
   | "multiChoice"
   | "date"
@@ -211,12 +233,33 @@ export interface AuditEntry {
   id: string;
   at: string;
   byUpn: string;
-  action: "submit" | "self-edit" | "admin-edit";
+  action: "submit" | "self-edit" | "admin-edit" | "approver-edit" | "route" | "approve" | "reject";
   changedFields: { fieldId: string; oldValue: unknown; newValue: unknown }[];
   reason?: string;
 }
 
 export type ResponseStatus = "draft" | "submitted";
+
+/** One recorded action in a response's approval chain — kept separately
+ *  from AuditEntry (which is form-wide edit history) since this is
+ *  specifically the routing state machine's own trail. */
+export interface RoutingHistoryEntry {
+  stepId: string;
+  actedBy: string;
+  action: "approved" | "rejected";
+  at: string;
+  reason?: string;
+}
+
+/** A response's live position in its form's approval chain — absent
+ *  entirely for a form with no routing configured. Persisted in the
+ *  ResponseRouting SharePoint List (services/responseRouting.ts), not in
+ *  the Excel row, so existing workbooks never need a schema change. */
+export interface ResponseRoutingState {
+  currentStepIndex: number;
+  status: "in-progress" | "approved" | "rejected";
+  history: RoutingHistoryEntry[];
+}
 
 export interface FormResponse {
   id: string;
@@ -228,4 +271,5 @@ export interface FormResponse {
   submittedAt?: string;
   updatedAt: string;
   editHistory: AuditEntry[];
+  routing?: ResponseRoutingState;
 }

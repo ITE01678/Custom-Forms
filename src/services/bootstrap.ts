@@ -126,6 +126,19 @@ const DRAFTS_COLUMNS: ColumnDef[] = [
   { name: "UpdatedAt", text: {} },
 ];
 
+/** One row per response that has an approval-routing chain configured —
+ *  kept as its own List (like ResponseIndex/AuditLog) rather than extra
+ *  Excel columns, so the response workbook's row shape never needs to
+ *  change and existing published forms/workbooks are unaffected. */
+const RESPONSE_ROUTING_COLUMNS: ColumnDef[] = [
+  { name: "FormId", text: {} },
+  { name: "ResponseId", text: {} },
+  { name: "CurrentStepIndex", number: {} },
+  { name: "Status", text: {} },
+  { name: "HistoryJson", text: { allowMultipleLines: true } },
+  { name: "UpdatedAt", text: {} },
+];
+
 export const LIST_NAMES = {
   forms: "Forms",
   syncQueue: "SyncQueue",
@@ -133,6 +146,7 @@ export const LIST_NAMES = {
   auditLog: "AuditLog",
   connectorConfigs: "ConnectorConfigs",
   drafts: "Drafts",
+  responseRouting: "ResponseRouting",
 } as const;
 
 export const LIBRARY_NAMES = {
@@ -155,6 +169,7 @@ export async function ensureFormsSiteStructure(): Promise<void> {
     ensureList(siteId, LIST_NAMES.auditLog, AUDIT_LOG_COLUMNS),
     ensureList(siteId, LIST_NAMES.connectorConfigs, CONNECTOR_CONFIGS_COLUMNS),
     ensureList(siteId, LIST_NAMES.drafts, DRAFTS_COLUMNS),
+    ensureList(siteId, LIST_NAMES.responseRouting, RESPONSE_ROUTING_COLUMNS),
     ensureLibrary(siteId, LIBRARY_NAMES.responseWorkbooks),
     ensureLibrary(siteId, LIBRARY_NAMES.formVersions),
     ensureLibrary(siteId, LIBRARY_NAMES.attachments),

@@ -1,6 +1,5 @@
 import {
   appendResponseRow,
-  findRowIndexByResponseId,
   getResponseByRowIndex,
   getResponseRows,
   updateResponseRow,
@@ -98,12 +97,9 @@ export async function submitResponse(
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await appendResponseRow(form, response);
+      const rowIndex = await appendResponseRow(form, response);
       await markDone(queueItemId);
-      const rowIndex = await findRowIndexByResponseId(form, response.id);
-      if (rowIndex !== null) {
-        await upsertIndex({ formId: form.id, responseId: response.id, submitterEmail: respondentUpn, rowIndex });
-      }
+      await upsertIndex({ formId: form.id, responseId: response.id, submitterEmail: respondentUpn, rowIndex });
       await addAuditEntry({
         formId: form.id,
         responseId: response.id,

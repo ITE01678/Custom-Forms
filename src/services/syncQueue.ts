@@ -100,8 +100,10 @@ export async function retryItem(item: ListItem<SyncQueueFields>): Promise<void> 
   if (item.fields.Operation === "insert") {
     const existing = await findRowIndexByResponseId(stored.form, response.id);
     if (existing === null) {
-      await appendResponseRow(stored.form, response);
-      rowIndex = (await findRowIndexByResponseId(stored.form, response.id)) ?? 0;
+      // appendResponseRow returns the index it just wrote directly — no
+      // separate re-read needed (and no risk of that re-read racing a
+      // just-completed upload; see excel.ts's doc comment on it).
+      rowIndex = await appendResponseRow(stored.form, response);
     } else {
       rowIndex = existing; // already landed on a prior attempt — just re-index, don't duplicate
     }

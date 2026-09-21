@@ -225,9 +225,21 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
   await writeWorkbookRows(driveId, workbookPath(form.id), rows);
 }
 
-/** Appends one brand-new response as a row. See `updateResponseRow` below
- *  for editing an existing response (index-cache + self-heal strategy). */
-export async function appendResponseRow(form: FormDefinition, response: FormResponse): Promise<void> {
+/**
+ * Appends one brand-new response as a row, returning its data-row index
+ * (0 = first response, header excluded — same convention `getRowAtIndex`
+ * uses elsewhere). Returned directly from the same read-modify-write that
+ * performed the append, rather than making the caller re-download and
+ * re-scan the file afterward: a fresh read immediately after an upload
+ * risks returning momentarily-stale content (ordinary eventual-consistency
+ * lag, not an error), which previously could make `findRowIndexByResponseId`
+ * report "not found" for a response that had, in fact, just been written —
+ * silently skipping `upsertIndex` and making that response invisible to
+ * every view that looks it up by id (the approval-routing pages especially).
+ * See `updateResponseRow` below for editing an existing response
+ * (index-cache + self-heal strategy, which still needs a fresh read).
+ */
+export async function appendResponseRow(form: FormDefinition, response: FormResponse): Promise<number> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
   const metaValues: Row = [
     response.id,
@@ -241,9 +253,11 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
   const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
   const newRow: Row = [...metaValues, ...fieldValues];
 
-  await withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => ({
+  return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => ({
     rows: [...rows, newRow],
-    result: undefined,
+    // rows here still includes the header row (index 0) — the new row's
+    // data-row index (header excluded) is its position before the push.
+    result: rows.length - 1,
   }));
 }
 

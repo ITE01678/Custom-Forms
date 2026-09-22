@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local-only reference docs — never pushed
+Form-Builder-Guide.html
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

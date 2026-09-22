@@ -152,6 +152,17 @@ async function readWorkbookRows(driveId: string, itemPath: string): Promise<Row[
   return XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: "" });
 }
 
+/** HTTP's If-Match header requires an entity-tag wrapped in literal double
+ *  quotes (e.g. `"abc123"`), but Graph's `eTag` JSON *value* doesn't
+ *  reliably come back with those quote characters already included in the
+ *  string — add them if missing, rather than risk every conditional write
+ *  spuriously failing as a 412 "conflict" against nothing (which, chained
+ *  through the retry loop below, would eventually exhaust attempts and
+ *  make even a brand new, uncontested write silently never land). */
+function toIfMatchValue(etag: string): string {
+  return etag.startsWith('"') && etag.endsWith('"') ? etag : `"${etag}"`;
+}
+
 async function writeWorkbookRows(
   driveId: string,
   itemPath: string,
@@ -166,7 +177,7 @@ async function writeWorkbookRows(
   await graphUploadBinary(`/drives/${driveId}/root:/${itemPath}:/content`, out.slice().buffer, {
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     scopes: graphScopes.sites,
-    headers: ifMatchEtag ? { "If-Match": ifMatchEtag } : undefined,
+    headers: ifMatchEtag ? { "If-Match": toIfMatchValue(ifMatchEtag) } : undefined,
   });
 }
 

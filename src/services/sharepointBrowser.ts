@@ -1,4 +1,5 @@
-import { graphFetch } from "./graphClient";
+import * as XLSX from "xlsx";
+import { graphFetch, graphFetchBinary } from "./graphClient";
 import { getFormsSite } from "./sites";
 import { LIBRARY_NAMES, LIST_NAMES } from "./bootstrap";
 import { graphScopes } from "../auth/msalConfig";
@@ -49,24 +50,37 @@ export async function listExcelFiles(driveId: string): Promise<BrowsableFile[]> 
     .map((item) => ({ name: item.name, path: item.name }));
 }
 
-/** Named Excel Tables inside one workbook — excel-lookup reads a Table, not
- *  a raw range, so this is exactly what the connector config needs. */
-export async function listWorkbookTables(driveId: string, itemPath: string): Promise<string[]> {
-  const result = await graphFetch<{ value: { name: string }[] }>(
-    `/drives/${driveId}/root:/${itemPath}:/workbook/tables?$select=name`,
-    { scopes: graphScopes.sites }
-  );
-  return result.value.map((t) => t.name);
+async function downloadWorkbook(driveId: string, itemPath: string): Promise<XLSX.WorkBook> {
+  const blob = await graphFetchBinary(`/drives/${driveId}/root:/${itemPath}:/content`, {
+    scopes: graphScopes.sites,
+  });
+  const bytes = await blob.arrayBuffer();
+  return XLSX.read(new Uint8Array(bytes), { type: "array" });
 }
 
-/** Column headers of one Excel Table — populates the "key column" dropdown
- *  so it can't be typo'd against the real sheet. */
-export async function listTableColumns(driveId: string, itemPath: string, tableName: string): Promise<string[]> {
-  const result = await graphFetch<{ value: { name: string }[] }>(
-    `/drives/${driveId}/root:/${itemPath}:/workbook/tables('${tableName}')/columns?$select=name`,
-    { scopes: graphScopes.sites }
-  );
-  return result.value.map((c) => c.name);
+/**
+ * Worksheet names inside one workbook — downloaded as plain file bytes and
+ * parsed client-side (SheetJS) rather than through Graph's Excel Workbook
+ * REST API, which cannot negotiate a session for any file in this tenant
+ * (see excel.ts's top-of-file comment; confirmed identically here on an
+ * arbitrary connector-source file, not just response workbooks). This also
+ * means the source file does NOT need a formal Excel "Table" object first —
+ * a plain sheet with a header row in row 1 works directly, no Insert →
+ * Table step required.
+ */
+export async function listWorkbookTables(driveId: string, itemPath: string): Promise<string[]> {
+  const workbook = await downloadWorkbook(driveId, itemPath);
+  return workbook.SheetNames;
+}
+
+/** Column headers (the sheet's row 1) of one worksheet — populates the "key
+ *  column" dropdown so it can't be typo'd against the real sheet. */
+export async function listTableColumns(driveId: string, itemPath: string, sheetName: string): Promise<string[]> {
+  const workbook = await downloadWorkbook(driveId, itemPath);
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) return [];
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, range: 0 });
+  return (rows[0] ?? []).map((h) => String(h));
 }
 
 export interface BrowsableList {

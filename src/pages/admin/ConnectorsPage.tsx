@@ -25,7 +25,8 @@ const CONNECTOR_TYPES: { value: ConnectorType; label: string; exampleConfig: str
   {
     value: "excel-lookup",
     label: "Shared Excel file",
-    exampleConfig: '{\n  "libraryName": "SharedData",\n  "itemPath": "hr-roster.xlsx",\n  "table": "Roster",\n  "keyColumn": "Department"\n}',
+    exampleConfig:
+      '{\n  "libraryName": "SharedData",\n  "itemPath": "hr-roster.xlsx",\n  "table": "Sheet1",\n  "keyColumn": "Department"\n}',
   },
   {
     value: "sharepoint-list-query",

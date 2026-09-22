@@ -123,7 +123,7 @@ function ExcelLookupPicker({ onConfigChange }: { onConfigChange: (config: Record
       )}
       {itemPath && (
         <div className="field-row">
-          <label>Table</label>
+          <label>Sheet</label>
           <select value={table} onChange={(e) => setTable(e.target.value)}>
             <option value="">{loading ? "Loading…" : "Choose…"}</option>
             {tables.map((t) => (
@@ -132,11 +132,10 @@ function ExcelLookupPicker({ onConfigChange }: { onConfigChange: (config: Record
               </option>
             ))}
           </select>
-          {!loading && tables.length === 0 && (
-            <p className="fill-field__help">
-              No named Excel Tables in this file — select the data range and Insert → Table first.
-            </p>
-          )}
+          <p className="fill-field__help">
+            Raw data works directly — no need to format it as an Excel Table first. The first row
+            of the sheet is read as column headers.
+          </p>
         </div>
       )}
       {table && (

@@ -120,21 +120,26 @@ same SharePoint site from step 2**:
 
 1. In that site, create a document library for shared reference files (any
    name, e.g. `SharedData`) — or reuse an existing one already in that site.
-2. Upload your master file (e.g. `hr-roster.xlsx`) into it.
-3. Open the file → select the header + data range → **Insert → Table** → give
-   the table a name (e.g. `Roster`) → save. The connector reads a named Excel
-   **Table**, not a raw range.
-4. In the app: **Dashboard → Data source connectors → Add a connector**, type
-   "Shared Excel file", config:
+2. Upload your master file (e.g. `hr-roster.xlsx`) into it — a plain sheet
+   with column headers in row 1 works as-is, **no need to select the range
+   and Insert → Table first**. (Graph's Excel Workbook REST API — which is
+   what would have needed a formal Table object — doesn't work at all in
+   this tenant; the connector reads the file's raw bytes directly instead,
+   so a Table object was never actually necessary here.)
+3. In the app: **Dashboard → Data source connectors → Add a connector**, type
+   "Shared Excel file" — the picker lets you browse to the library/file/sheet
+   instead of typing this by hand, but the config shape is:
    ```json
    {
      "libraryName": "SharedData",
      "itemPath": "hr-roster.xlsx",
-     "table": "Roster",
+     "table": "Sheet1",
      "keyColumn": "Department"
    }
    ```
-5. In the builder, set a field's fill mode to "Auto-fill from a data source
+   (`table` here means the worksheet name, e.g. `Sheet1` or whatever you
+   renamed the tab to — not a formal Excel Table.)
+4. In the builder, set a field's fill mode to "Auto-fill from a data source
    connector", pick this connector, and set its lookup key (e.g.
    `{{respondent.department}}`) and which column of a matched row to use.
 

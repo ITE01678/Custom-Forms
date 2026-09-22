@@ -142,7 +142,14 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
         )}
       </details>
 
-      {isChoice && (
+      {isChoice && field.connectorAutofill?.dynamicOptions && (
+        <p className="fill-field__help" style={{ marginLeft: "6rem" }}>
+          Options come from the connector at fill time (configured below) — the static list is
+          unused while that's on.
+        </p>
+      )}
+
+      {isChoice && !field.connectorAutofill?.dynamicOptions && (
         <>
           <div className="field-editor__options">
             {(field.options ?? []).map((opt, i) => (
@@ -446,34 +453,100 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                   placeholder="{{respondent.department}} or {{fields.someFieldId}}"
                 />
               </label>
-              <label>
-                Source field to use{" "}
-                <input
-                  type="text"
-                  value={field.connectorAutofill?.outputMapping[0]?.key ?? ""}
-                  onChange={(e) =>
-                    field.connectorAutofill &&
-                    set({
-                      connectorAutofill: {
-                        ...field.connectorAutofill,
-                        outputMapping: [{ key: e.target.value, label: field.label, type: "text" }],
-                      },
-                    })
-                  }
-                  placeholder="e.g. displayName, mail, department"
-                />
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={field.connectorAutofill?.allowManualOverride !== false}
-                  onChange={(e) =>
-                    field.connectorAutofill &&
-                    set({ connectorAutofill: { ...field.connectorAutofill, allowManualOverride: e.target.checked } })
-                  }
-                />
-                Let respondent switch to manual entry
-              </label>
+              {isChoice && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!field.connectorAutofill?.dynamicOptions}
+                    onChange={(e) =>
+                      field.connectorAutofill &&
+                      set({
+                        connectorAutofill: {
+                          ...field.connectorAutofill,
+                          dynamicOptions: e.target.checked ? { valueKey: "", labelKey: "" } : undefined,
+                        },
+                      })
+                    }
+                  />
+                  Use results as selectable options, instead of auto-filling one value
+                </label>
+              )}
+
+              {isChoice && field.connectorAutofill?.dynamicOptions ? (
+                <>
+                  <label>
+                    Value column{" "}
+                    <input
+                      type="text"
+                      value={field.connectorAutofill.dynamicOptions.valueKey}
+                      onChange={(e) =>
+                        field.connectorAutofill?.dynamicOptions &&
+                        set({
+                          connectorAutofill: {
+                            ...field.connectorAutofill,
+                            dynamicOptions: { ...field.connectorAutofill.dynamicOptions, valueKey: e.target.value },
+                          },
+                        })
+                      }
+                      placeholder="e.g. Employee Mail"
+                    />
+                  </label>
+                  <label>
+                    Label column{" "}
+                    <input
+                      type="text"
+                      value={field.connectorAutofill.dynamicOptions.labelKey}
+                      onChange={(e) =>
+                        field.connectorAutofill?.dynamicOptions &&
+                        set({
+                          connectorAutofill: {
+                            ...field.connectorAutofill,
+                            dynamicOptions: { ...field.connectorAutofill.dynamicOptions, labelKey: e.target.value },
+                          },
+                        })
+                      }
+                      placeholder="e.g. Employee Name"
+                    />
+                  </label>
+                  <p className="fill-field__help">
+                    One option per matched row — a manager with 5 reports sees 5 checkboxes, one
+                    with 3 sees 3. Column names must match the connector's source exactly (for a
+                    shared Excel file, its header row).
+                  </p>
+                </>
+              ) : (
+                <label>
+                  Source field to use{" "}
+                  <input
+                    type="text"
+                    value={field.connectorAutofill?.outputMapping[0]?.key ?? ""}
+                    onChange={(e) =>
+                      field.connectorAutofill &&
+                      set({
+                        connectorAutofill: {
+                          ...field.connectorAutofill,
+                          outputMapping: [{ key: e.target.value, label: field.label, type: "text" }],
+                        },
+                      })
+                    }
+                    placeholder="e.g. displayName, mail, department"
+                  />
+                </label>
+              )}
+
+              {!field.connectorAutofill?.dynamicOptions && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={field.connectorAutofill?.allowManualOverride !== false}
+                    onChange={(e) =>
+                      field.connectorAutofill &&
+                      set({ connectorAutofill: { ...field.connectorAutofill, allowManualOverride: e.target.checked } })
+                    }
+                  />
+                  Let respondent switch to manual entry
+                </label>
+              )}
             </>
           )}
         </div>

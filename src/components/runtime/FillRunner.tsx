@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { RuntimeShell } from "./RuntimeShell";
 import { FieldRenderer } from "./fields/FieldRenderer";
 import { AutofillField } from "./fields/AutofillField";
+import { DynamicChoiceField } from "./fields/DynamicChoiceField";
 import { ConnectorTableField } from "./fields/ConnectorTableField";
 import { FileUploadField } from "./fields/FileUploadField";
 import { GraphImage } from "../common/GraphImage";
@@ -299,6 +300,27 @@ function renderField(
         field={field}
         respondentEmail={respondentEmail}
         priorAnswers={answers}
+        onChange={onChange}
+        error={error}
+      />
+    );
+  }
+
+  // A choice field whose OPTIONS (not a single auto-filled value) come from
+  // a connector lookup — checked before the generic connector-autofill
+  // branch below, which assumes a scalar resolved value.
+  if (
+    field.fillMode === "connector-autofill" &&
+    field.connectorAutofill?.dynamicOptions &&
+    (field.type === "singleChoice" || field.type === "multiChoice")
+  ) {
+    return (
+      <DynamicChoiceField
+        key={field.id}
+        field={field}
+        respondentEmail={respondentEmail}
+        priorAnswers={answers}
+        value={answers[field.id] ?? (field.type === "multiChoice" ? [] : null)}
         onChange={onChange}
         error={error}
       />

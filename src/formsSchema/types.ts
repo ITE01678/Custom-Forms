@@ -200,6 +200,16 @@ export interface ConnectorAutofillConfig {
   /** Lets the respondent flip this field to manual entry instead of trusting
    *  the auto-filled value/rows — on by default. */
   allowManualOverride?: boolean;
+  /** Choice-type fields only (singleChoice/multiChoice): instead of
+   *  auto-filling a single value, the connector's resolved rows become this
+   *  field's selectable OPTIONS at fill time — e.g. "find every employee
+   *  whose HOD Mail matches me, let the respondent pick which ones,"
+   *  replacing whatever static options the designer typed in the builder.
+   *  valueKey/labelKey name which column of each resolved row (the
+   *  connector's own output column names — for excel-lookup, the source
+   *  sheet's header names) becomes the option's stored value vs its
+   *  displayed label. */
+  dynamicOptions?: { valueKey: string; labelKey: string };
 }
 
 export interface FormField {

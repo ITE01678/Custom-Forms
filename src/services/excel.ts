@@ -118,6 +118,14 @@ async function getTemplateBytes(): Promise<ArrayBuffer> {
     );
   }
   templateBytesCache = await res.arrayBuffer();
+  // Temporary diagnostic logging — remove once the "blank workbook" issue is
+  // confirmed fixed.
+  // eslint-disable-next-line no-console
+  console.info("[excel-debug] getTemplateBytes", {
+    status: res.status,
+    contentType: res.headers.get("Content-Type"),
+    byteLength: templateBytesCache.byteLength,
+  });
   return templateBytesCache;
 }
 
@@ -149,7 +157,22 @@ async function readWorkbookRows(driveId: string, itemPath: string): Promise<Row[
   const bytes = await blob.arrayBuffer();
   const workbook = XLSX.read(new Uint8Array(bytes), { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: "" });
+  const rows = XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: "" });
+  // Temporary diagnostic logging — remove once the "blank workbook" issue is
+  // confirmed fixed. Pinpoints exactly what a read actually saw: how many
+  // bytes came back, what sheet(s) SheetJS found in them, and how many rows
+  // it parsed out — so a report of "no data" can be traced to a specific
+  // step instead of guessed at.
+  // eslint-disable-next-line no-console
+  console.info("[excel-debug] readWorkbookRows", {
+    itemPath,
+    byteLength: bytes.byteLength,
+    sheetNames: workbook.SheetNames,
+    sheetRef: sheet?.["!ref"] ?? "(none)",
+    rowCount: rows.length,
+    firstRow: rows[0],
+  });
+  return rows;
 }
 
 /** HTTP's If-Match header requires an entity-tag wrapped in literal double
@@ -174,6 +197,17 @@ async function writeWorkbookRows(
   XLSX.utils.book_append_sheet(workbook, sheet, "Responses");
   const out = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array;
 
+  // Temporary diagnostic logging — remove once the "blank workbook" issue is
+  // confirmed fixed. See readWorkbookRows's matching log for why.
+  // eslint-disable-next-line no-console
+  console.info("[excel-debug] writeWorkbookRows", {
+    itemPath,
+    inputRowCount: rows.length,
+    sheetRef: sheet["!ref"] ?? "(none)",
+    outputByteLength: out.byteLength,
+    ifMatchEtag: ifMatchEtag ?? "(none)",
+  });
+
   await graphUploadBinary(`/drives/${driveId}/root:/${itemPath}:/content`, out.slice().buffer, {
     contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     scopes: graphScopes.sites,
@@ -196,6 +230,16 @@ async function withOptimisticUpdate<T>(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const [etag, rows] = await Promise.all([getItemETag(driveId, itemPath), readWorkbookRows(driveId, itemPath)]);
     const { rows: nextRows, result } = mutate(rows);
+    // Temporary diagnostic logging — remove once the "blank workbook" issue
+    // is confirmed fixed.
+    // eslint-disable-next-line no-console
+    console.info("[excel-debug] withOptimisticUpdate attempt", {
+      itemPath,
+      attempt,
+      etag,
+      rowsBeforeMutate: rows.length,
+      rowsAfterMutate: nextRows.length,
+    });
     try {
       await writeWorkbookRows(driveId, itemPath, nextRows, etag);
       return result;
@@ -232,6 +276,17 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
   // avoided in the builder (not yet enforced — noted as a known gap).
   const headerRow: Row = [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
   const rows: Row[] = [headerRow, ...templateRows.slice(1)];
+
+  // Temporary diagnostic logging — remove once the "blank workbook" issue is
+  // confirmed fixed.
+  // eslint-disable-next-line no-console
+  console.info("[excel-debug] ensureWorkbookForForm", {
+    formId: form.id,
+    templateSheetNames: templateWorkbook.SheetNames,
+    templateRowCount: templateRows.length,
+    headerRow,
+    finalRowCount: rows.length,
+  });
 
   await writeWorkbookRows(driveId, workbookPath(form.id), rows);
 }

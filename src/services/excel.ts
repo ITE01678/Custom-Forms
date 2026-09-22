@@ -193,6 +193,14 @@ async function writeWorkbookRows(
   ifMatchEtag?: string
 ): Promise<void> {
   const sheet = XLSX.utils.aoa_to_sheet(rows);
+  // Defensive: aoa_to_sheet is expected to compute this automatically, but
+  // explicitly setting it removes any doubt that a missing/incorrect
+  // dimension is what's producing a sheet some downstream reader treats as
+  // empty — cheap and harmless either way.
+  if (!sheet["!ref"] && rows.length > 0) {
+    const maxCols = rows.reduce((max, r) => Math.max(max, r.length), 1);
+    sheet["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: maxCols - 1 } });
+  }
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Responses");
   const out = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array;
@@ -221,6 +229,8 @@ async function writeWorkbookRows(
  * to return to the caller) from them, uploads with `If-Match`, and retries
  * from a fresh download if another submit/edit won the race (412).
  */
+class WriteVerificationError extends Error {}
+
 async function withOptimisticUpdate<T>(
   driveId: string,
   itemPath: string,
@@ -242,12 +252,33 @@ async function withOptimisticUpdate<T>(
     });
     try {
       await writeWorkbookRows(driveId, itemPath, nextRows, etag);
+
+      // Verify the write actually took effect before reporting success —
+      // there is direct evidence in this tenant that a PUT can be accepted
+      // (200, a new SharePoint file version) while the content that lands
+      // is NOT what was uploaded (seen once as a completely blank sheet
+      // with SharePoint's own default "Sheet1" name, not ours). Silently
+      // trusting the PUT's success turns that into invisible data loss —
+      // the respondent is told "submitted" and nothing is ever queued for
+      // retry. Re-reading and comparing row counts converts that into a
+      // real, visible, retryable failure instead.
+      const verifyRows = await readWorkbookRows(driveId, itemPath);
+      if (verifyRows.length !== nextRows.length) {
+        throw new WriteVerificationError(
+          `Write verification failed: expected ${nextRows.length} row(s) after saving, found ${verifyRows.length}. ` +
+            `The upload was accepted but its content doesn't match what was sent — this has been seen before in ` +
+            `this tenant's SharePoint. Not treating this as a successful save.`
+        );
+      }
+
       return result;
     } catch (err) {
       const isConflict = err instanceof GraphError && err.status === 412;
-      if (!isConflict || attempt === maxAttempts) throw err;
-      // someone else wrote first — loop and reapply `mutate` against the
-      // now-current rows rather than blindly retrying the same write.
+      const isVerificationMiss = err instanceof WriteVerificationError;
+      if ((!isConflict && !isVerificationMiss) || attempt === maxAttempts) throw err;
+      // Someone else wrote first (conflict), or this write didn't actually
+      // take effect (verification miss) — either way, loop and try again
+      // from a fresh read rather than blindly retrying the identical bytes.
     }
   }
   throw new Error("Could not save — too many concurrent edits, please try again.");

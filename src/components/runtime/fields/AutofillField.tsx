@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAutofill } from "./useAutofill";
 import { FileUploadField } from "./FileUploadField";
+import { textStyleToCss } from "../../../lib/textStyle";
+import { QuestionMedia } from "./QuestionMedia";
 import type { AnswerValue, FileAttachment, FormField } from "../../../formsSchema/types";
 
 interface Props {
@@ -84,7 +86,7 @@ export function AutofillField({ field, respondentEmail, priorAnswers, onChange, 
 
   return (
     <div className="fill-field">
-      <label className="fill-field__label">
+      <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {field.validation?.required && <span className="fill-field__required-mark">*</span>}
         <span className="autofill-badge">
@@ -102,6 +104,7 @@ export function AutofillField({ field, respondentEmail, priorAnswers, onChange, 
           </span>
         )}
       </label>
+      <QuestionMedia field={field} />
 
       {mode === "manual" ? (
         isFileUpload && formId && responseId ? (

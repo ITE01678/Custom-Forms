@@ -5,6 +5,7 @@ import { getFormBySlug, getFormVersion } from "../../services/forms";
 import { getMyResponse, submitResponse, updateResponse } from "../../services/responses";
 import { getDraft, saveDraft, deleteDraft } from "../../services/drafts";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
+import { initialSectionAccess } from "../../formsSchema/routingAccess";
 import type { AnswerValue, FormDefinition, FormResponse } from "../../formsSchema/types";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { ReadOnlySummary } from "../../components/runtime/ReadOnlySummary";
@@ -131,7 +132,7 @@ export function FillPage() {
           ? "This form is no longer accepting responses."
           : "You don't have access to this form.";
     return (
-      <RuntimeShell title={gate.form.title} branding={gate.form.branding}>
+      <RuntimeShell title={gate.form.title} titleStyle={gate.form.titleStyle} branding={gate.form.branding}>
         <p>{message}</p>
       </RuntimeShell>
     );
@@ -197,6 +198,7 @@ export function FillPage() {
       responseId={freshResponseId}
       initialAnswers={draftAnswers}
       initialSectionIds={draftSectionIds}
+      sectionAccess={initialSectionAccess(form)}
       onSaveDraft={handleSaveDraft}
       onSubmit={handleCreateSubmit}
     />

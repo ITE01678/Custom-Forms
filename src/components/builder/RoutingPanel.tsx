@@ -6,6 +6,40 @@ interface Props {
   form: FormDefinition;
 }
 
+/** Toggleable list of section checkboxes — reused for "who fills what" at
+ *  each stage. Empty/all-checked both mean "no restriction," so an admin
+ *  ticking every box and one leaving it untouched behave identically. */
+function SectionChecklist({
+  form,
+  selectedIds,
+  onChange,
+}: {
+  form: FormDefinition;
+  selectedIds: string[] | undefined;
+  onChange: (ids: string[]) => void;
+}) {
+  const sorted = [...form.sections].sort((a, b) => a.order - b.order);
+  const selected = new Set(selectedIds ?? []);
+
+  function toggle(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    onChange([...next]);
+  }
+
+  return (
+    <div className="routing-section-checklist">
+      {sorted.map((s) => (
+        <label key={s.id} style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: 400 }}>
+          <input type="checkbox" checked={selected.has(s.id)} onChange={() => toggle(s.id)} />
+          {s.title || "(untitled section)"}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 const MODE_LABELS: Record<RoutingConfig["mode"], string> = {
   none: "No routing — a response is just recorded, like normal",
   single: "Send to one approver",
@@ -69,11 +103,41 @@ export function RoutingPanel({ form }: Props) {
         ))}
       </div>
 
+      {routing.mode === "sequential" && form.sections.length > 1 && (
+        <div className="field-row">
+          <label>Which sections can the original respondent fill in first?</label>
+          <p className="fill-field__help">
+            Leave every box unchecked (or check them all) for no restriction — the respondent can
+            fill in the whole form, as normal.
+          </p>
+          <SectionChecklist
+            form={form}
+            selectedIds={routing.initialSectionIds}
+            onChange={(ids) => setRouting({ initialSectionIds: ids })}
+          />
+        </div>
+      )}
+
       {routing.mode !== "none" && (
         <div className="routing-steps">
           {routing.steps.map((step, i) => (
             <div className="routing-step" key={step.id}>
               {routing.mode === "sequential" && <div className="routing-step__number">Stage {i + 1}</div>}
+
+              {routing.mode === "sequential" && form.sections.length > 1 && (
+                <div className="field-row">
+                  <label>Which sections can this stage edit?</label>
+                  <p className="fill-field__help">
+                    Leave unchecked/all-checked for no restriction — sections handled at an
+                    earlier stage still show here for context, read-only.
+                  </p>
+                  <SectionChecklist
+                    form={form}
+                    selectedIds={step.editableSectionIds}
+                    onChange={(ids) => updateStep(i, { editableSectionIds: ids })}
+                  />
+                </div>
+              )}
 
               <div className="field-row">
                 <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: 400 }}>

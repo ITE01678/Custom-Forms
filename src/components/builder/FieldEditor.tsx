@@ -1,6 +1,7 @@
 import type { ConnectorType, FormField } from "../../formsSchema/types";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { MediaUploadField } from "./MediaUploadField";
+import { TextStyleControls } from "./TextStyleControls";
 
 export interface ConnectorOption {
   id: string;
@@ -98,6 +99,48 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
           ✕
         </button>
       </div>
+
+      <details className="field-editor__label-style">
+        <summary>Question style</summary>
+        <TextStyleControls value={field.labelStyle} onChange={(labelStyle) => set({ labelStyle })} />
+      </details>
+
+      <details className="field-editor__label-style">
+        <summary>{field.mediaUrl ? "Question media" : "+ Add media to this question"}</summary>
+        <MediaUploadField
+          formId={formId}
+          kind={`question-${field.id}`}
+          label="Image"
+          value={field.mediaUrl}
+          onChange={(url) => set({ mediaUrl: url })}
+        />
+        {field.mediaUrl && (
+          <div className="field-row field-row--inline">
+            <label>
+              Size ({field.mediaSizePx ?? 240}px)
+              <input
+                type="range"
+                min={80}
+                max={480}
+                step={10}
+                value={field.mediaSizePx ?? 240}
+                onChange={(e) => set({ mediaSizePx: Number(e.target.value) })}
+              />
+            </label>
+            <label>
+              Position
+              <select
+                value={field.mediaPosition ?? "left"}
+                onChange={(e) => set({ mediaPosition: e.target.value as FormField["mediaPosition"] })}
+              >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+          </div>
+        )}
+      </details>
 
       {isChoice && (
         <>

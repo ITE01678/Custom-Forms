@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import type { AnswerValue, FormField } from "../../../formsSchema/types";
 import { shuffle } from "../../../lib/shuffle";
+import { textStyleToCss } from "../../../lib/textStyle";
 import { GraphImage } from "../../common/GraphImage";
+import { QuestionMedia } from "./QuestionMedia";
 
 /** AnswerValue's array member is `string[] | FileAttachment[]` — multiChoice
  *  only ever deals with the string[] case, so narrow explicitly rather than
@@ -37,10 +39,11 @@ export function FieldRenderer({ field, value, onChange, error }: Props) {
 
   return (
     <div className="fill-field">
-      <label className="fill-field__label" htmlFor={field.id}>
+      <label className="fill-field__label" htmlFor={field.id} style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {field.validation?.required && <span className="fill-field__required-mark">*</span>}
       </label>
+      <QuestionMedia field={field} />
       {renderInput(field, value, onChange, options)}
       {showCounter && (
         <span className="fill-field__counter">

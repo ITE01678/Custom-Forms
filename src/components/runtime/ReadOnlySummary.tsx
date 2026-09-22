@@ -19,7 +19,7 @@ export function ReadOnlySummary({ form, answers, submittedAt }: Props) {
   const fields = flattenFields(form);
 
   return (
-    <RuntimeShell title={form.title} description={form.description} branding={form.branding}>
+    <RuntimeShell title={form.title} titleStyle={form.titleStyle} description={form.description} branding={form.branding}>
       <div className="runtime__banner">
         You already submitted this{submittedAt ? ` on ${new Date(submittedAt).toLocaleDateString()}` : ""}. This
         form doesn't allow changes after submission.

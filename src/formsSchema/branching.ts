@@ -18,9 +18,20 @@ export function getVisibleFields(section: FormSection, answers: Record<string, u
   return section.fields.filter((f) => !f.visibility || evaluateCondition(f.visibility, answers));
 }
 
-/** Whether a section itself should be rendered/stopped at (false = auto-skip). */
-export function isSectionVisible(section: FormSection, answers: Record<string, unknown>): boolean {
-  return !section.visibility || evaluateCondition(section.visibility, answers);
+/** Whether a section itself should be rendered/stopped at (false = auto-skip).
+ *  `extraCheck`, when given, must ALSO pass — used for approval-routing's
+ *  per-stage section access (formsSchema/routingAccess.ts) so a section
+ *  outside the current actor's visible set is skipped the exact same
+ *  transparent way a conditionally-hidden section already is, with no
+ *  separate branching logic to keep in sync. */
+export function isSectionVisible(
+  section: FormSection,
+  answers: Record<string, unknown>,
+  extraCheck?: (section: FormSection) => boolean
+): boolean {
+  if (section.visibility && !evaluateCondition(section.visibility, answers)) return false;
+  if (extraCheck && !extraCheck(section)) return false;
+  return true;
 }
 
 function sectionById(sections: FormSection[], id: string): FormSection | undefined {
@@ -46,7 +57,8 @@ function naturalNextId(sections: FormSection[], currentId: string): string | nul
 export function resolveNextSectionId(
   currentSectionId: string,
   sections: FormSection[],
-  answers: Record<string, unknown>
+  answers: Record<string, unknown>,
+  extraCheck?: (section: FormSection) => boolean
 ): string | null {
   let cursor: string | null = currentSectionId;
   const guard = new Set<string>(); // cycle-safety: a misconfigured form must not infinite-loop
@@ -72,7 +84,7 @@ export function resolveNextSectionId(
     const candidateSection = sectionById(sections, candidate);
     if (!candidateSection) return null;
 
-    if (isSectionVisible(candidateSection, answers)) {
+    if (isSectionVisible(candidateSection, answers, extraCheck)) {
       return candidate;
     }
 
@@ -85,10 +97,14 @@ export function resolveNextSectionId(
 
 /** The first section to render when starting a fresh fill-out, skipping any
  *  that are hidden under the initial (usually empty) answers. */
-export function resolveFirstSectionId(sections: FormSection[], answers: Record<string, unknown>): string | null {
+export function resolveFirstSectionId(
+  sections: FormSection[],
+  answers: Record<string, unknown>,
+  extraCheck?: (section: FormSection) => boolean
+): string | null {
   const ordered = [...sections].sort((a, b) => a.order - b.order);
   const first = ordered[0];
   if (!first) return null;
-  if (isSectionVisible(first, answers)) return first.id;
-  return resolveNextSectionId(first.id, sections, answers);
+  if (isSectionVisible(first, answers, extraCheck)) return first.id;
+  return resolveNextSectionId(first.id, sections, answers, extraCheck);
 }

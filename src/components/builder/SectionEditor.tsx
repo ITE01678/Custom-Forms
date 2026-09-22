@@ -2,6 +2,9 @@ import type { FieldType, FormSection } from "../../formsSchema/types";
 import { FIELD_TYPE_LABELS, useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { FieldEditor, type ConnectorOption } from "./FieldEditor";
 import { MediaUploadField } from "./MediaUploadField";
+import { RichTextEditor } from "./RichTextEditor";
+import { TextStyleControls } from "./TextStyleControls";
+import { textStyleToCss } from "../../lib/textStyle";
 
 interface Props {
   formId: string;
@@ -35,6 +38,7 @@ export function SectionEditor({ formId, section, isFirst, isLast, connectorOptio
       <div className="section-editor__header">
         <input
           className="section-editor__title"
+          style={textStyleToCss(section.titleStyle)}
           value={section.title}
           onChange={(e) => updateSection(section.id, { title: e.target.value })}
         />
@@ -52,10 +56,12 @@ export function SectionEditor({ formId, section, isFirst, isLast, connectorOptio
         </button>
       </div>
 
+      <TextStyleControls value={section.titleStyle} onChange={(titleStyle) => updateSection(section.id, { titleStyle })} />
+
       <div className="section-editor__meta">
-        <input
+        <RichTextEditor
           value={section.description ?? ""}
-          onChange={(e) => updateSection(section.id, { description: e.target.value })}
+          onChange={(description) => updateSection(section.id, { description })}
           placeholder="Section description (optional)"
         />
         <MediaUploadField

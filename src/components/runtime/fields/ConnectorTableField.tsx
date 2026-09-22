@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useEffect } from "react";
 import { useAutofill } from "./useAutofill";
+import { textStyleToCss } from "../../../lib/textStyle";
+import { QuestionMedia } from "./QuestionMedia";
 import type { AnswerValue, FormField, RepeatingTableValue } from "../../../formsSchema/types";
 
 interface Props {
@@ -91,10 +93,11 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, onCh
   if (status === "loading" || status === "idle") {
     return (
       <div className="fill-field">
-        <label className="fill-field__label">
+        <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
           {field.label}
           {badge}
         </label>
+        <QuestionMedia field={field} />
         <p className="fill-field__help">Loading…</p>
       </div>
     );
@@ -104,10 +107,11 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, onCh
     if (cfg?.errorBehavior === "blockSubmit") {
       return (
         <div className="fill-field">
-          <label className="fill-field__label">
+          <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
             {field.label}
             {badge}
           </label>
+          <QuestionMedia field={field} />
           <div className="error-text">Couldn't load this table{autofillError ? `: ${autofillError}` : "."}</div>
         </div>
       );
@@ -115,10 +119,11 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, onCh
     if (cfg?.errorBehavior === "showErrorAllowRetry") {
       return (
         <div className="fill-field">
-          <label className="fill-field__label">
+          <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
             {field.label}
             {badge}
           </label>
+          <QuestionMedia field={field} />
           <div className="error-text">
             Couldn't load this table{autofillError ? `: ${autofillError}` : "."} <button onClick={retry}>Retry</button>
           </div>
@@ -146,10 +151,11 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, onCh
     }
     return (
       <div className="fill-field">
-        <label className="fill-field__label">
+        <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
           {field.label}
           {badge}
         </label>
+        <QuestionMedia field={field} />
         <p className="fill-field__help">No records found.</p>
         {error && <div className="error-text">{error}</div>}
       </div>
@@ -174,10 +180,11 @@ function ConnectorGridReadOnly({
 }) {
   return (
     <div className="fill-field">
-      <label className="fill-field__label">
+      <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {badge}
       </label>
+      <QuestionMedia field={field} />
       <div className="table-scroll">
         <table className="response-grid">
           <thead>
@@ -229,10 +236,11 @@ function ManualGrid({
 }) {
   return (
     <div className="fill-field">
-      <label className="fill-field__label">
+      <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {badge}
       </label>
+      <QuestionMedia field={field} />
       {warning && <p className="error-text">{warning}</p>}
       <div className="table-scroll">
         <table className="response-grid">

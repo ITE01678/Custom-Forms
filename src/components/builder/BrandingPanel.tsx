@@ -17,6 +17,22 @@ const PALETTE = [
   "#334155", // slate
 ];
 
+const CARD_STYLES: { value: NonNullable<BrandingConfig["cardStyle"]>; label: string; description: string }[] = [
+  { value: "rounded", label: "Rounded (default)", description: "Soft corners, a gentle shadow — the current look." },
+  { value: "sharp", label: "Sharp", description: "Square corners for a crisper, more formal feel." },
+  { value: "elevated", label: "Elevated", description: "A deeper shadow that lifts the card off the page." },
+  { value: "flat", label: "Flat", description: "No shadow at all — sits flush with the background." },
+  { value: "bordered", label: "Bordered", description: "A visible outline instead of a shadow, minimal and print-friendly." },
+];
+
+const FONT_STACKS: { label: string; value: string }[] = [
+  { label: "Default", value: "" },
+  { label: "Classic serif", value: "Georgia, 'Times New Roman', serif" },
+  { label: "Modern sans", value: "'Segoe UI', system-ui, sans-serif" },
+  { label: "Friendly rounded", value: "'Trebuchet MS', 'Nunito', sans-serif" },
+  { label: "Technical mono", value: "'Cascadia Code', 'Courier New', monospace" },
+];
+
 export function BrandingPanel({ form }: Props) {
   const { updateForm } = useFormBuilderStore();
 
@@ -60,7 +76,37 @@ export function BrandingPanel({ form }: Props) {
         />
       </div>
 
-      <h3>Logo &amp; header image</h3>
+      <h3>Design style</h3>
+      <div className="card-style-grid">
+        {CARD_STYLES.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            className={`card-style-option ${(form.branding.cardStyle ?? "rounded") === s.value ? "is-selected" : ""}`}
+            onClick={() => setBranding({ cardStyle: s.value })}
+          >
+            <span className={`card-style-option__preview card-style-option__preview--${s.value}`} />
+            <strong>{s.label}</strong>
+            <span>{s.description}</span>
+          </button>
+        ))}
+      </div>
+      <div className="field-row">
+        <label htmlFor="font-family">Form font</label>
+        <select
+          id="font-family"
+          value={form.branding.fontFamily ?? ""}
+          onChange={(e) => setBranding({ fontFamily: e.target.value || undefined })}
+        >
+          {FONT_STACKS.map((f) => (
+            <option key={f.label} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <h3>Logo</h3>
       <MediaUploadField
         formId={form.id}
         kind="logo"
@@ -68,6 +114,33 @@ export function BrandingPanel({ form }: Props) {
         value={form.branding.logoUrl}
         onChange={(url) => setBranding({ logoUrl: url })}
       />
+      {form.branding.logoUrl && (
+        <div className="field-row field-row--inline">
+          <label>
+            Size ({form.branding.logoSizePx ?? 40}px)
+            <input
+              type="range"
+              min={24}
+              max={120}
+              value={form.branding.logoSizePx ?? 40}
+              onChange={(e) => setBranding({ logoSizePx: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            Position
+            <select
+              value={form.branding.logoPosition ?? "left"}
+              onChange={(e) => setBranding({ logoPosition: e.target.value as BrandingConfig["logoPosition"] })}
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      <h3>Header image</h3>
       <MediaUploadField
         formId={form.id}
         kind="header"
@@ -75,6 +148,42 @@ export function BrandingPanel({ form }: Props) {
         value={form.branding.headerImageUrl}
         onChange={(url) => setBranding({ headerImageUrl: url })}
       />
+      {form.branding.headerImageUrl && (
+        <div className="field-row field-row--inline">
+          <label>
+            Height ({form.branding.headerHeightPx ?? 220}px)
+            <input
+              type="range"
+              min={100}
+              max={400}
+              step={10}
+              value={form.branding.headerHeightPx ?? 220}
+              onChange={(e) => setBranding({ headerHeightPx: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            Focus
+            <select
+              value={form.branding.headerFocalPoint ?? "center"}
+              onChange={(e) => setBranding({ headerFocalPoint: e.target.value as BrandingConfig["headerFocalPoint"] })}
+            >
+              <option value="top">Top</option>
+              <option value="center">Center</option>
+              <option value="bottom">Bottom</option>
+            </select>
+          </label>
+          <label>
+            Opacity ({form.branding.headerOpacity ?? 100}%)
+            <input
+              type="range"
+              min={20}
+              max={100}
+              value={form.branding.headerOpacity ?? 100}
+              onChange={(e) => setBranding({ headerOpacity: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+      )}
 
       <h3>Form background</h3>
       <div className="field-row">
@@ -120,13 +229,40 @@ export function BrandingPanel({ form }: Props) {
       )}
 
       {backgroundType === "image" && (
-        <MediaUploadField
-          formId={form.id}
-          kind="background"
-          label="Background image"
-          value={form.branding.background?.imageUrl}
-          onChange={(url) => setBackground({ imageUrl: url })}
-        />
+        <>
+          <MediaUploadField
+            formId={form.id}
+            kind="background"
+            label="Background image"
+            value={form.branding.background?.imageUrl}
+            onChange={(url) => setBackground({ imageUrl: url })}
+          />
+          {form.branding.background?.imageUrl && (
+            <div className="field-row field-row--inline">
+              <label>
+                Style
+                <select
+                  value={form.branding.background?.fit ?? "cover"}
+                  onChange={(e) => setBackground({ fit: e.target.value as NonNullable<BrandingConfig["background"]>["fit"] })}
+                >
+                  <option value="cover">Fill (cover)</option>
+                  <option value="contain">Fit whole image</option>
+                  <option value="tile">Tiled pattern</option>
+                </select>
+              </label>
+              <label>
+                Opacity ({form.branding.background?.opacity ?? 100}%)
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  value={form.branding.background?.opacity ?? 100}
+                  onChange={(e) => setBackground({ opacity: Number(e.target.value) })}
+                />
+              </label>
+            </div>
+          )}
+        </>
       )}
 
       <h3>Submit &amp; confirmation</h3>

@@ -5,9 +5,13 @@ import { AutofillField } from "./fields/AutofillField";
 import { ConnectorTableField } from "./fields/ConnectorTableField";
 import { FileUploadField } from "./fields/FileUploadField";
 import { GraphImage } from "../common/GraphImage";
+import { RichText } from "../common/RichText";
 import { getVisibleFields, resolveFirstSectionId, resolveNextSectionId, shuffleSectionOrder } from "../../formsSchema/branching";
 import { validateFields, type FieldError } from "../../formsSchema/validation";
+import type { SectionAccess } from "../../formsSchema/routingAccess";
 import { useAuth } from "../../auth/useAuth";
+import { textStyleToCss } from "../../lib/textStyle";
+import { formatAnswer } from "../../lib/formatAnswer";
 import type { AnswerValue, FormDefinition, FormField } from "../../formsSchema/types";
 
 interface Props {
@@ -21,6 +25,14 @@ interface Props {
    *  visible section itself (respecting shuffleSections). Pass the actual
    *  path for resuming a draft/edit, so Back replays it exactly. */
   initialSectionIds?: string[];
+  /** Approval-routing's per-stage section restriction (formsSchema/
+   *  routingAccess.ts) — omitted entirely for a form with no routing, or
+   *  the ordinary create/self-edit paths, which always see/edit everything.
+   *  Sections outside `visibleSectionIds` are transparently skipped during
+   *  navigation (reusing the same mechanism conditional section visibility
+   *  already uses); sections in `visibleSectionIds` but not
+   *  `editableSectionIds` are shown read-only for context. */
+  sectionAccess?: SectionAccess;
   /** Shown as a banner above the form — e.g. "You already submitted this on
    *  <date>. Editing your response — changes are logged." for the edit-mode gate. */
   banner?: ReactNode;
@@ -56,6 +68,7 @@ export function FillRunner({
   responseId,
   initialAnswers,
   initialSectionIds,
+  sectionAccess,
   banner,
   requireReason,
   onSaveDraft,
@@ -73,10 +86,15 @@ export function FillRunner({
     [form.id]
   );
 
+  const sectionExtraCheck = useMemo(
+    () => (sectionAccess ? (s: { id: string }) => sectionAccess.visibleSectionIds.has(s.id) : undefined),
+    [sectionAccess]
+  );
+
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>(initialAnswers ?? {});
   const [visitedSectionIds, setVisitedSectionIds] = useState<string[]>(() => {
     if (initialSectionIds && initialSectionIds.length > 0) return initialSectionIds;
-    const first = resolveFirstSectionId(effectiveSections, initialAnswers ?? {});
+    const first = resolveFirstSectionId(effectiveSections, initialAnswers ?? {}, sectionExtraCheck);
     return first ? [first] : [];
   });
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -96,10 +114,11 @@ export function FillRunner({
     () => (currentSection ? getVisibleFields(currentSection, answers) : []),
     [currentSection, answers]
   );
+  const isCurrentSectionEditable = !sectionAccess || sectionAccess.editableSectionIds.has(currentSection?.id ?? "");
 
   if (!currentSection) {
     return (
-      <RuntimeShell title={form.title} description={form.description} branding={form.branding}>
+      <RuntimeShell title={form.title} titleStyle={form.titleStyle} description={form.description} branding={form.branding}>
         <p>This form has no sections yet.</p>
       </RuntimeShell>
     );
@@ -116,7 +135,7 @@ export function FillRunner({
     setErrors([]);
   }
 
-  const isLastStep = resolveNextSectionId(currentSection.id, effectiveSections, answers) === null;
+  const isLastStep = resolveNextSectionId(currentSection.id, effectiveSections, answers, sectionExtraCheck) === null;
 
   async function handleSaveDraft() {
     if (!onSaveDraft) return;
@@ -132,13 +151,15 @@ export function FillRunner({
   }
 
   async function handleNext() {
-    const fieldErrors = validateFields(visibleFields, answers);
+    // A read-only (context-only) section has nothing this actor entered —
+    // nothing to validate before moving on.
+    const fieldErrors = isCurrentSectionEditable ? validateFields(visibleFields, answers) : [];
     if (fieldErrors.length > 0) {
       setErrors(fieldErrors);
       return;
     }
 
-    const nextId = resolveNextSectionId(currentSection!.id, effectiveSections, answers);
+    const nextId = resolveNextSectionId(currentSection!.id, effectiveSections, answers, sectionExtraCheck);
     if (nextId) {
       setVisitedSectionIds((prev) => [...prev, nextId]);
       return;
@@ -178,7 +199,7 @@ export function FillRunner({
   const progress = Math.min(1, visitedSectionIds.length / totalSections);
 
   return (
-    <RuntimeShell title={form.title} description={form.description} branding={form.branding}>
+    <RuntimeShell title={form.title} titleStyle={form.titleStyle} description={form.description} branding={form.branding}>
       {banner && <div className="runtime__banner">{banner}</div>}
 
       {form.sections.length > 1 && form.settings.showProgressBar && (
@@ -190,10 +211,28 @@ export function FillRunner({
       {currentSection.imageUrl && (
         <GraphImage className="fill-runner__section-image" src={currentSection.imageUrl} alt="" />
       )}
-      <h2 className="fill-runner__section-title">{currentSection.title}</h2>
-      {currentSection.description && <p className="fill-runner__section-desc">{currentSection.description}</p>}
+      <h2 className="fill-runner__section-title" style={textStyleToCss(currentSection.titleStyle)}>
+        {currentSection.title}
+      </h2>
+      {currentSection.description && (
+        <RichText className="fill-runner__section-desc" html={currentSection.description} />
+      )}
+      {!isCurrentSectionEditable && (
+        <p className="fill-runner__readonly-note">
+          🔒 Shown for context — this section was completed at an earlier stage.
+        </p>
+      )}
 
-      {visibleFields.map((field) => renderField(field, answers, setAnswer, errors, email ?? "", form.id, responseId))}
+      {isCurrentSectionEditable
+        ? visibleFields.map((field) => renderField(field, answers, setAnswer, errors, email ?? "", form.id, responseId))
+        : visibleFields.map((field) => (
+            <div className="fill-field" key={field.id}>
+              <span className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
+                {field.label}
+              </span>
+              <p className="fill-field__readonly-value">{formatAnswer(answers[field.id] ?? null)}</p>
+            </div>
+          ))}
 
       {isLastStep && requireReason && (
         <div className="fill-field">

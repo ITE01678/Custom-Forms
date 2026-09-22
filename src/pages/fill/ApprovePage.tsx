@@ -6,6 +6,7 @@ import { getIndexByResponseId } from "../../services/responseIndex";
 import { getResponseByRowIndex } from "../../services/excel";
 import { getCurrentStep, getRoutingState, resolveStepRecipients } from "../../services/responseRouting";
 import { actOnRouting, updateResponse } from "../../services/responses";
+import { stepSectionAccess } from "../../formsSchema/routingAccess";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { RuntimeShell } from "../../components/runtime/RuntimeShell";
 import type { AnswerValue, FormDefinition, FormResponse } from "../../formsSchema/types";
@@ -86,7 +87,7 @@ export function ApprovePage() {
 
   if (gate.mode === "denied") {
     return (
-      <RuntimeShell title={gate.form.title} branding={gate.form.branding}>
+      <RuntimeShell title={gate.form.title} titleStyle={gate.form.titleStyle} branding={gate.form.branding}>
         <p>
           This response isn't waiting on your review right now. If you were sent this link,
           make sure you're signed in with the account it was sent to.
@@ -103,7 +104,7 @@ export function ApprovePage() {
           ? "This response has already been approved."
           : "This response has already been rejected.";
     return (
-      <RuntimeShell title={gate.form.title} branding={gate.form.branding}>
+      <RuntimeShell title={gate.form.title} titleStyle={gate.form.titleStyle} branding={gate.form.branding}>
         <p>{message}</p>
       </RuntimeShell>
     );
@@ -133,6 +134,7 @@ export function ApprovePage() {
       form={form}
       responseId={response.id}
       initialAnswers={response.answers}
+      sectionAccess={stepSectionAccess(form, response.routing?.currentStepIndex ?? 0)}
       banner={<>You're reviewing a submitted response. Edit anything that needs fixing, then approve or reject it.</>}
       onSubmit={(answers) => handleDecision("approved", answers)}
       secondaryAction={{

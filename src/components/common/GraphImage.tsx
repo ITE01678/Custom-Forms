@@ -1,9 +1,11 @@
+import type { CSSProperties } from "react";
 import { useResolvedImageUrl } from "../../hooks/useResolvedImageUrl";
 
 interface Props {
   src: string | undefined;
   alt: string;
   className?: string;
+  style?: CSSProperties;
 }
 
 /** Drop-in replacement for <img> wherever the src might be a SharePoint
@@ -12,9 +14,9 @@ interface Props {
  *  directly. Renders nothing until resolved; on failure shows a visible
  *  error instead of silently staying blank forever, since a stuck-blank
  *  image and a still-loading one are otherwise indistinguishable. */
-export function GraphImage({ src, alt, className }: Props) {
+export function GraphImage({ src, alt, className, style }: Props) {
   const { url, error } = useResolvedImageUrl(src);
   if (error) return <span className="graph-image-error" title={error}>⚠ Couldn't load image</span>;
   if (!url) return null;
-  return <img src={url} alt={alt} className={className} />;
+  return <img src={url} alt={alt} className={className} style={style} />;
 }

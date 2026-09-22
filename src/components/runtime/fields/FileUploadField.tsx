@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { uploadAttachment, deleteAttachment } from "../../../services/attachments";
+import { textStyleToCss } from "../../../lib/textStyle";
+import { QuestionMedia } from "./QuestionMedia";
 import type { AnswerValue, FileAttachment, FormField } from "../../../formsSchema/types";
 
 interface Props {
@@ -69,10 +71,11 @@ export function FileUploadField({ field, formId, responseId, value, onChange, er
 
   return (
     <div className="fill-field">
-      <label className="fill-field__label" htmlFor={field.id}>
+      <label className="fill-field__label" htmlFor={field.id} style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {field.validation?.required && <span className="fill-field__required-mark">*</span>}
       </label>
+      <QuestionMedia field={field} />
       <input
         id={field.id}
         type="file"

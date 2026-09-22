@@ -9,6 +9,8 @@ export interface FormDefinition {
   currentDraftVersion: number; // increments every save while unpublished
   latestPublishedVersion: number | null; // pointer into FormVersion history
   title: string;
+  titleStyle?: TextStyle;
+  /** Sanitized HTML — see FormSection.description's doc comment; same rules. */
   description?: string;
   owner: { upn: string; displayName?: string };
   createdAt: string; // ISO
@@ -31,6 +33,12 @@ export interface RoutingStep {
   recipientSource: "designer" | "respondent-field";
   recipients?: string[]; // used when recipientSource === "designer"
   fieldId?: string; // used when recipientSource === "respondent-field" — an approverEmail field's id
+  /** Which sections THIS stage's actor can edit — undefined/empty means no
+   *  restriction (can edit every section, the pre-existing default
+   *  behavior). Sections outside this list are still shown for context
+   *  (read-only) as long as an earlier stage could see/edit them — see
+   *  formsSchema/routingAccess.ts for the exact visibility rule. */
+  editableSectionIds?: string[];
 }
 
 export interface RoutingConfig {
@@ -39,6 +47,11 @@ export interface RoutingConfig {
    *  uses the full ordered `steps` list, one recipient set per stage. */
   mode: "none" | "single" | "multiple" | "sequential";
   steps: RoutingStep[];
+  /** Restricts what the ORIGINAL respondent can fill in before routing even
+   *  starts — e.g. "the first person only fills Part A." Undefined/empty
+   *  means no restriction (every section), matching every form that
+   *  existed before this was added. */
+  initialSectionIds?: string[];
 }
 
 /** MS-Forms-style form-level settings (Settings tab). */
@@ -74,9 +87,31 @@ export interface BranchRule {
   goTo: string; // sectionId
 }
 
+/** Whole-text formatting for a title/label — deliberately NOT rich/mixed
+ *  formatting (that's what `description` fields use instead, as sanitized
+ *  HTML from RichTextEditor): a field label or section/form title doubles
+ *  as an identifier (Excel column header, dropdown option, audit trail
+ *  text), so it has to stay plain, greppable text — styling is layered on
+ *  top as metadata, never baked into the string itself. */
+export interface TextStyle {
+  color?: string; // hex
+  fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  align?: "left" | "center" | "right";
+  highlightColor?: string; // hex background highlight
+}
+
 export interface FormSection {
   id: string; // stable id, referenced by conditions/branchRules
   title: string;
+  titleStyle?: TextStyle;
+  /** Sanitized HTML (RichTextEditor) — bold/italic/underline/bullets/
+   *  highlight/color/alignment. Safe to render as-is (already sanitized on
+   *  save AND again defensively on render, see lib/sanitizeHtml.ts) — plain
+   *  text with no markup still renders correctly, so this stays backward
+   *  compatible with every section created before rich text existed. */
   description?: string;
   imageUrl?: string; // optional section header image, like MS Forms' section media
   order: number;
@@ -171,11 +206,19 @@ export interface FormField {
   id: string; // stable, immutable — used as the response answer key & condition target
   type: FieldType;
   label: string;
+  labelStyle?: TextStyle;
   helpText?: string;
   placeholder?: string;
   order: number;
   fillMode: FillMode;
   readOnly?: boolean; // usually true when fillMode !== 'manual'
+  /** Optional per-question image (MS-Forms-style "add media to a question")
+   *  — distinct from `options[].imageUrl` (per-choice-answer images) and
+   *  from a fileUpload field's own answer data; this is decorative,
+   *  attached to the question itself regardless of field type. */
+  mediaUrl?: string;
+  mediaSizePx?: number; // width in px — default 240
+  mediaPosition?: "left" | "center" | "right";
   options?: { value: string; label: string; imageUrl?: string }[]; // choice types
   allowOther?: boolean; // choice types — adds a free-text "Other" option, MS-Forms style
   shuffleOptions?: boolean; // choice types — randomize option order per respondent
@@ -188,13 +231,27 @@ export interface FormField {
 
 export interface BrandingConfig {
   logoUrl?: string;
+  logoSizePx?: number; // logo height in px — default 40
+  logoPosition?: "left" | "center" | "right";
   headerImageUrl?: string;
+  headerHeightPx?: number; // default 220
+  headerFocalPoint?: "top" | "center" | "bottom"; // object-position, which part of a tall image stays visible when cropped
+  headerOpacity?: number; // 0-100, default 100
   themeColor?: string; // hex
   background?: {
     type: "default" | "color" | "image";
     color?: string; // hex, used when type === "color"
     imageUrl?: string; // used when type === "image"
+    opacity?: number; // 0-100, default 100 — lets the page's base tone show through an image
+    fit?: "cover" | "contain" | "tile"; // background-size/repeat preset
   };
+  /** Overall card presentation preset — border radius/shadow/accent-bar
+   *  combination, the closest thing to MS Forms' "theme" picker beyond a
+   *  single accent color. */
+  cardStyle?: "rounded" | "sharp" | "elevated" | "flat" | "bordered";
+  /** Whole-form font stack — applies across the runtime card, not just one
+   *  piece of text (per-title/per-label overrides in TextStyle still win). */
+  fontFamily?: string;
   submitButtonText?: string; // default "Submit"
   confirmation: { mode: "message" | "redirect"; message?: string; redirectUrl?: string };
 }

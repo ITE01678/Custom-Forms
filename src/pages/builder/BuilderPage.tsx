@@ -11,7 +11,10 @@ import { FormSettingsPanel } from "../../components/builder/FormSettingsPanel";
 import { RoutingPanel } from "../../components/builder/RoutingPanel";
 import { BranchingPanel } from "../../components/builder/BranchingPanel";
 import { PreviewModal } from "../../components/builder/PreviewModal";
+import { RichTextEditor } from "../../components/builder/RichTextEditor";
+import { TextStyleControls } from "../../components/builder/TextStyleControls";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
 
 type Tab = "content" | "branching" | "branding" | "sharing" | "settings";
@@ -101,6 +104,7 @@ export function BuilderPage() {
       <div className="builder-header">
         <input
           className="builder-header__title"
+          style={textStyleToCss(form.titleStyle)}
           value={form.title}
           onChange={(e) => updateForm({ title: e.target.value })}
         />
@@ -117,10 +121,10 @@ export function BuilderPage() {
 
       {tab === "content" && (
         <>
-          <textarea
-            className="builder-header__description"
+          <TextStyleControls value={form.titleStyle} onChange={(titleStyle) => updateForm({ titleStyle })} />
+          <RichTextEditor
             value={form.description ?? ""}
-            onChange={(e) => updateForm({ description: e.target.value })}
+            onChange={(description) => updateForm({ description })}
             placeholder="Form description (optional)"
           />
 

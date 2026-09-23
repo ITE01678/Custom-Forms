@@ -118,6 +118,13 @@ export async function graphFetch<T>(path: string, opts: GraphRequestOptions = {}
 
     const res = await fetch(url, {
       method: opts.method ?? "GET",
+      // The browser's own HTTP cache must never serve a stale response for
+      // a Graph call — confirmed necessary the hard way: a read
+      // immediately after a write to the same URL (e.g. an ETag lookup or
+      // a content re-read right after uploading new bytes) could otherwise
+      // be answered from cache instead of hitting the network, silently
+      // showing pre-write state as if it were current.
+      cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -185,6 +192,7 @@ export async function graphUploadBinary<T = unknown>(
     const token = await getDelegatedToken(scopes);
     const res = await fetch(url, {
       method: "PUT",
+      cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": opts.contentType ?? "application/octet-stream",
@@ -230,7 +238,7 @@ export async function graphFetchBinary(
     // Binary downloads back an <img>/CSS background; they must never pop a
     // login window out of nowhere.
     const token = await getDelegatedToken(scopes, opts.interactive ?? false);
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(url, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
 
     if (res.status === 429 || res.status === 503) {
       const retryAfterSec = Number(res.headers.get("Retry-After") ?? "1");

@@ -305,6 +305,23 @@ async function withOptimisticUpdate<T>(
     } catch (err) {
       const isConflict = err instanceof GraphError && err.status === 412;
       const isVerificationMiss = err instanceof WriteVerificationError;
+      // Temporary diagnostic logging — remove once the "blank workbook"
+      // issue is confirmed fixed. writeWorkbookRows/graphUploadBinaryViaSession
+      // can throw for reasons that were previously invisible (no log fired
+      // between "writeWorkbookRows" and the next "readWorkbookRows" line) —
+      // log every caught error explicitly, GraphError or not, so a real
+      // failure (CORS, a rejected upload session, a network error) is never
+      // silently indistinguishable from "didn't get this far yet".
+      // eslint-disable-next-line no-console
+      console.info("[excel-debug] withOptimisticUpdate caught error", {
+        itemPath,
+        attempt,
+        errName: err instanceof Error ? err.name : typeof err,
+        errMessage: err instanceof Error ? err.message : String(err),
+        graphStatus: err instanceof GraphError ? err.status : undefined,
+        graphBody: err instanceof GraphError ? err.body : undefined,
+        willRetry: (isConflict || isVerificationMiss) && attempt < maxAttempts,
+      });
       if ((!isConflict && !isVerificationMiss) || attempt === maxAttempts) throw err;
       // Someone else wrote first (conflict), or this write didn't actually
       // take effect (verification miss) — either way, loop and try again

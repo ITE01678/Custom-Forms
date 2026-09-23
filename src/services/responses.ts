@@ -134,6 +134,12 @@ export async function submitResponse(
 
       return response;
     } catch (err) {
+      // This was previously silent — a failure here only ever showed up as
+      // a SyncQueue "failed" row on the admin Sync Health page, with no
+      // console trace at all, making the underlying cause (e.g. a rejected
+      // upload, a network/CORS error) invisible during live debugging.
+      // eslint-disable-next-line no-console
+      console.error("[submitResponse] appendResponseRow attempt failed", { attempt, maxAttempts, err });
       if (attempt === maxAttempts) {
         await markFailed(queueItemId, attempt, err instanceof Error ? err.message : String(err));
       } else {
@@ -210,6 +216,9 @@ export async function updateResponse(params: {
       });
       return updated;
     } catch (err) {
+      // See the matching comment in submitResponse above.
+      // eslint-disable-next-line no-console
+      console.error("[updateResponse] updateResponseRow attempt failed", { attempt, maxAttempts, err });
       if (attempt === maxAttempts) {
         await markFailed(queueItemId, attempt, err instanceof Error ? err.message : String(err));
       } else {

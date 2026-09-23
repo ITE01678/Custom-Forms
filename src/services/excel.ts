@@ -221,6 +221,31 @@ async function writeWorkbookRows(
     scopes: graphScopes.sites,
     headers: ifMatchEtag ? { "If-Match": toIfMatchValue(ifMatchEtag) } : undefined,
   });
+
+  // Temporary diagnostic logging — remove once the "blank workbook" issue is
+  // confirmed fixed. Asks Graph directly what size/eTag it now has on record
+  // for this item, independent of any content read — narrows whether a
+  // "content comes back blank" symptom is a write that never truly
+  // committed real bytes (this would show a wrong/tiny size here too) vs.
+  // one where Graph's own metadata is correct but serving `/content` back
+  // is what's broken (size here would match outputByteLength).
+  try {
+    const item = await graphFetch<{ size: number; eTag: string; lastModifiedDateTime: string }>(
+      `/drives/${driveId}/root:/${itemPath}?$select=size,eTag,lastModifiedDateTime`,
+      { scopes: graphScopes.sites }
+    );
+    // eslint-disable-next-line no-console
+    console.info("[excel-debug] post-write item metadata", {
+      itemPath,
+      expectedByteLength: out.byteLength,
+      graphReportedSize: item.size,
+      eTag: item.eTag,
+      lastModifiedDateTime: item.lastModifiedDateTime,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.info("[excel-debug] post-write item metadata fetch failed", err);
+  }
 }
 
 /**

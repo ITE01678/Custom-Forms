@@ -203,7 +203,18 @@ async function writeWorkbookRows(
   }
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Responses");
-  const out = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array;
+  // Despite the `type: "array"` option and the `as Uint8Array` assertion
+  // below (a compile-time-only claim TypeScript doesn't verify), SheetJS's
+  // actual runtime return value here is a raw ArrayBuffer, not a Uint8Array
+  // view over one — confirmed the hard way: `out.byteLength` worked (both
+  // ArrayBuffer and Uint8Array have it), but `out.slice().buffer` was
+  // silently `undefined` (ArrayBuffer.prototype.slice() returns another
+  // ArrayBuffer, which has no `.buffer` property of its own — only a
+  // TypedArray view does), so every upload was sent with an undefined body.
+  // Normalize once, here, so every downstream use (byteLength reads,
+  // .slice().buffer for the upload) works consistently either way.
+  const rawOut = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array | ArrayBuffer;
+  const out = rawOut instanceof ArrayBuffer ? new Uint8Array(rawOut) : rawOut;
 
   // Temporary diagnostic logging — remove once the "blank workbook" issue is
   // confirmed fixed. See readWorkbookRows's matching log for why.

@@ -156,7 +156,14 @@ function renderInput(
 
     case "singleChoice": {
       const predefined = new Set(options.map((o) => o.value));
-      const isOtherSelected = typeof value === "string" && value !== "" ? !predefined.has(value) : false;
+      // Deliberately does NOT exclude "" — selecting "Other" sets the value
+      // to "" until the respondent types something, and it still needs to
+      // register as "other mode is active" (not "nothing selected") so the
+      // free-text input stays visible and the dropdown/radio stays showing
+      // "Other" instead of snapping back to unselected. A genuinely
+      // untouched field has value === null (not a string), so that case is
+      // already excluded by the typeof check above.
+      const isOtherSelected = typeof value === "string" && !predefined.has(value);
 
       if (field.choiceDisplay === "dropdown") {
         return (

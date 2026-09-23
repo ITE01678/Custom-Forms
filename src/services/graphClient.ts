@@ -272,6 +272,13 @@ export async function graphUploadBinaryViaSession<T = unknown>(
 ): Promise<T> {
   const scopes = opts.scopes ?? ["Sites.Manage.All"];
 
+  if (!(bytes instanceof ArrayBuffer)) {
+    throw new Error(
+      `graphUploadBinaryViaSession: expected an ArrayBuffer, got ${Object.prototype.toString.call(bytes)} — ` +
+        `caller passed something without a real .byteLength.`
+    );
+  }
+
   const session = await graphFetch<{ uploadUrl: string }>(
     `/drives/${driveId}/root:/${itemPath}:/createUploadSession`,
     {
@@ -281,6 +288,17 @@ export async function graphUploadBinaryViaSession<T = unknown>(
       headers: opts.ifMatchEtag ? { "If-Match": opts.ifMatchEtag } : undefined,
     }
   );
+
+  if (!session?.uploadUrl) {
+    // Temporary diagnostic logging — remove once the "blank workbook" issue
+    // is confirmed fixed. Turns a downstream "can't access property
+    // 'byteLength'/'x' of undefined" (which was genuinely ambiguous about
+    // WHICH undefined value it came from) into an unambiguous, immediate
+    // failure that names exactly what createUploadSession actually returned.
+    // eslint-disable-next-line no-console
+    console.info("[excel-debug] createUploadSession returned no uploadUrl", { itemPath, session });
+    throw new Error(`createUploadSession for ${itemPath} did not return an uploadUrl — got ${JSON.stringify(session)}`);
+  }
 
   try {
     // uploadUrl is a pre-authenticated temporary URL — no Authorization

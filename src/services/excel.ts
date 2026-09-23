@@ -469,7 +469,17 @@ export async function updateResponseRow(
  *  existing-response gate (edit mode) and the admin response detail view. */
 export async function getResponseByRowIndex(form: FormDefinition, rowIndex: number): Promise<FormResponse | null> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
-  const rows = await readWorkbookRows(driveId, workbookPath(form.id));
+  let rows: Row[];
+  try {
+    rows = await readWorkbookRows(driveId, workbookPath(form.id));
+  } catch (err) {
+    // A stale ResponseIndex entry (e.g. pointing at a workbook that was
+    // manually deleted and not yet recreated) shouldn't crash the page that
+    // looks it up — treat "the workbook doesn't exist" the same way
+    // workbookExists() already does elsewhere: as "no response", not an error.
+    if (err instanceof GraphError && err.status === 404) return null;
+    throw err;
+  }
   const raw = rows[rowIndex + 1] as Row | undefined;
   if (!raw) return null;
 

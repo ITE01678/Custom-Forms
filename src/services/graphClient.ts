@@ -282,21 +282,39 @@ export async function graphUploadBinaryViaSession<T = unknown>(
     }
   );
 
-  // uploadUrl is a pre-authenticated temporary URL — no Authorization header,
-  // and it's outside GRAPH_BASE, so this can't go through graphFetch/
-  // graphUploadBinary's usual token-attaching path.
-  const res = await fetch(session.uploadUrl, {
-    method: "PUT",
-    cache: "no-store",
-    headers: {
-      "Content-Length": String(bytes.byteLength),
-      "Content-Range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
-    },
-    body: bytes,
-  });
-
-  if (!res.ok) throw new GraphError(res.status, itemPath, await res.text());
-  return (await res.json()) as T;
+  try {
+    // uploadUrl is a pre-authenticated temporary URL — no Authorization
+    // header, and it's outside GRAPH_BASE, so this can't go through
+    // graphFetch/graphUploadBinary's usual token-attaching path.
+    // Content-Length is deliberately NOT set here — it's a forbidden fetch()
+    // header the browser sets itself from the body, and passing it
+    // explicitly risks the request being rejected or malformed depending on
+    // the engine.
+    const res = await fetch(session.uploadUrl, {
+      method: "PUT",
+      cache: "no-store",
+      headers: { "Content-Range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}` },
+      body: bytes,
+    });
+    if (!res.ok) throw new GraphError(res.status, itemPath, await res.text());
+    return (await res.json()) as T;
+  } catch (err) {
+    // A session that's created but never finalized (any error here, before
+    // or during the ranged PUT) stays "in progress" on Graph's side and
+    // permanently blocks every future write to this same item with a 409
+    // "nameAlreadyExists" until it's cancelled or naturally expires (up to
+    // ~2 weeks) — confirmed the hard way: one failed attempt wedged every
+    // subsequent submit/edit to the same response workbook. Best-effort
+    // cancel so a failure here doesn't have that lasting effect; if the
+    // cancel itself fails, the original error is what the caller needs to
+    // see, not this one.
+    try {
+      await fetch(session.uploadUrl, { method: "DELETE", cache: "no-store" });
+    } catch {
+      // ignored — see comment above
+    }
+    throw err;
+  }
 }
 
 interface GraphPageResponse<T> {

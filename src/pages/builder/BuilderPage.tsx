@@ -195,6 +195,8 @@ export function BuilderPage() {
         <button className="btn-primary" onClick={handlePublish} disabled={isPublishing || sortedSections.length === 0}>
           {isPublishing ? "Publishing…" : "Publish"}
         </button>
+        {saveError && <span className="error-text">{saveError}</span>}
+        <div className="builder-actions__spacer" />
         {form.status !== "archived" && (
           <button onClick={handleArchive} disabled={isArchiving}>
             {isArchiving ? "Archiving…" : "Archive"}
@@ -203,7 +205,6 @@ export function BuilderPage() {
         <button className="btn-danger" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting}>
           Delete
         </button>
-        {saveError && <span className="error-text">{saveError}</span>}
       </div>
 
       <p className="builder-owner">Owner: {form.owner.upn}</p>

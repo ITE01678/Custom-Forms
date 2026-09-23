@@ -656,6 +656,12 @@ textarea {
   padding: 0.6rem 0.2rem;
   margin-right: 1.25rem;
   color: var(--text-muted);
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.builder-tabs button:hover:not(:disabled):not(.is-active) {
+  color: var(--text);
+  border-color: transparent;
 }
 
 .builder-tabs button.is-active {
@@ -671,6 +677,13 @@ textarea {
   box-shadow: var(--shadow-sm);
   padding: 1.1rem;
   margin-bottom: 1rem;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.section-editor:hover,
+.section-editor:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: var(--shadow);
 }
 
 .section-editor__header {
@@ -727,6 +740,12 @@ textarea {
   border-radius: var(--radius-sm);
   padding: 0.65rem 0.75rem;
   background: var(--surface-sunken);
+  transition: border-color 150ms ease;
+}
+
+.field-editor:hover,
+.field-editor:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
 }
 
 .field-editor__row {
@@ -736,11 +755,18 @@ textarea {
 }
 
 .field-editor__type {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  font-weight: 600;
   color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
   min-width: 5.5rem;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .field-editor__label {
@@ -843,6 +869,12 @@ textarea {
   align-items: center;
   gap: 0.75rem;
   margin: 1.5rem 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.builder-actions__spacer {
+  flex: 1;
 }
 
 .builder-share {
@@ -1972,6 +2004,10 @@ textarea {
 
   .builder-actions button {
     flex: 1 1 auto;
+  }
+
+  .builder-actions__spacer {
+    display: none;
   }
 
   .builder-share {

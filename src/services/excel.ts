@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { graphFetch, graphFetchBinary, graphUploadBinary } from "./graphClient";
+import { graphFetch, graphFetchBinary, graphUploadBinaryViaSession } from "./graphClient";
 import { GraphError } from "./graphErrors";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { LIBRARY_NAMES } from "./bootstrap";
@@ -216,10 +216,15 @@ async function writeWorkbookRows(
     ifMatchEtag: ifMatchEtag ?? "(none)",
   });
 
-  await graphUploadBinary(`/drives/${driveId}/root:/${itemPath}:/content`, out.slice().buffer, {
-    contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  // A plain `PUT .../content` was confirmed (via Graph's own post-write
+  // item metadata) to silently corrupt this tenant's .xlsx uploads to size
+  // 0 despite a 200 response and a new version — same class of Excel/WAC
+  // brokenness already documented above for the Workbook REST API. The
+  // upload-session route sidesteps whatever broken finalize step causes
+  // that; see graphUploadBinaryViaSession's doc comment.
+  await graphUploadBinaryViaSession(driveId, itemPath, out.slice().buffer, {
     scopes: graphScopes.sites,
-    headers: ifMatchEtag ? { "If-Match": toIfMatchValue(ifMatchEtag) } : undefined,
+    ifMatchEtag: ifMatchEtag ? toIfMatchValue(ifMatchEtag) : undefined,
   });
 
   // Temporary diagnostic logging — remove once the "blank workbook" issue is

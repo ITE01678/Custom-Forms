@@ -253,6 +253,52 @@ export async function graphFetchBinary(
   throw new GraphError(500, path, "retry loop exhausted");
 }
 
+/**
+ * Uploads via Graph's resumable "upload session" flow instead of a plain
+ * `PUT .../content`. Workaround for a tenant-specific corruption bug: a
+ * plain content PUT to an Office-recognized extension (.xlsx) is silently
+ * accepted — 200 response, a new SharePoint version, a changed ETag — but
+ * the item's committed size ends up 0, confirmed by reading the item's own
+ * `size` property straight from Graph right after the PUT, independent of
+ * any client-side read or caching path. The upload-session route uses a
+ * different backend ingestion path that doesn't appear to hit whatever
+ * broken coauthoring/finalize step is zeroing out a direct PUT here.
+ */
+export async function graphUploadBinaryViaSession<T = unknown>(
+  driveId: string,
+  itemPath: string,
+  bytes: ArrayBuffer,
+  opts: { scopes?: string[]; ifMatchEtag?: string } = {}
+): Promise<T> {
+  const scopes = opts.scopes ?? ["Sites.Manage.All"];
+
+  const session = await graphFetch<{ uploadUrl: string }>(
+    `/drives/${driveId}/root:/${itemPath}:/createUploadSession`,
+    {
+      method: "POST",
+      scopes,
+      body: { item: { "@microsoft.graph.conflictBehavior": "replace" } },
+      headers: opts.ifMatchEtag ? { "If-Match": opts.ifMatchEtag } : undefined,
+    }
+  );
+
+  // uploadUrl is a pre-authenticated temporary URL — no Authorization header,
+  // and it's outside GRAPH_BASE, so this can't go through graphFetch/
+  // graphUploadBinary's usual token-attaching path.
+  const res = await fetch(session.uploadUrl, {
+    method: "PUT",
+    cache: "no-store",
+    headers: {
+      "Content-Length": String(bytes.byteLength),
+      "Content-Range": `bytes 0-${bytes.byteLength - 1}/${bytes.byteLength}`,
+    },
+    body: bytes,
+  });
+
+  if (!res.ok) throw new GraphError(res.status, itemPath, await res.text());
+  return (await res.json()) as T;
+}
+
 interface GraphPageResponse<T> {
   value: T[];
   "@odata.nextLink"?: string;

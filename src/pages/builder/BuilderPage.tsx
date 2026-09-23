@@ -134,6 +134,7 @@ export function BuilderPage() {
     <div className="app-shell">
       <AppTopbar backTo={{ to: "/", label: "My forms" }} />
       <div className="page page--wide">
+      <div className="builder-sheet">
       <div className="builder-header">
         <input
           className="builder-header__title"
@@ -172,7 +173,9 @@ export function BuilderPage() {
             />
           ))}
 
-          <button onClick={addSection}>+ Add section</button>
+          <button className="builder-add-section" onClick={addSection}>
+            + Add section
+          </button>
         </>
       )}
 
@@ -210,6 +213,7 @@ export function BuilderPage() {
       <p className="builder-owner">Owner: {form.owner.upn}</p>
 
       <FormFilesPanel form={form} />
+      </div>
 
       {showPreview && <PreviewModal form={form} onClose={() => setShowPreview(false)} />}
 

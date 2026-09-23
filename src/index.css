@@ -614,6 +614,14 @@ textarea {
 
 /* --- Builder --- */
 
+.builder-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 2rem 2.25rem 1.75rem;
+}
+
 .builder-header {
   display: flex;
   align-items: center;
@@ -622,16 +630,24 @@ textarea {
 }
 
 .builder-header__title {
-  font-size: 1.6rem;
+  font-size: 1.75rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   flex: 1;
-  padding: 0.25rem 0.4rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .builder-header__title:hover {
   border-color: var(--border);
-  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.builder-header__title:focus {
+  border-color: var(--accent);
+  background: var(--surface-sunken);
 }
 
 .builder-header__description {
@@ -720,8 +736,17 @@ textarea {
 }
 
 .section-editor__add-field button {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.section-editor__add-field button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .section-editor__meta {
@@ -914,6 +939,23 @@ textarea {
   font-size: 0.85rem;
 }
 
+.builder-add-section {
+  width: 100%;
+  padding: 0.85rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.builder-add-section:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-softer);
+}
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1073,6 +1115,11 @@ textarea {
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
+  transition: transform 100ms ease;
+}
+
+.rich-text-editor__swatch:hover:not(:disabled) {
+  transform: scale(1.15);
 }
 
 .rich-text-editor__surface {
@@ -1134,6 +1181,11 @@ textarea {
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
+  transition: transform 100ms ease;
+}
+
+.text-style-controls__swatch:hover:not(:disabled) {
+  transform: scale(1.15);
 }
 
 .text-style-controls__swatch--none {
@@ -1955,6 +2007,11 @@ textarea {
   .page--wide {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .builder-sheet {
+    padding: 1.25rem 1rem 1.25rem;
+    border-radius: var(--radius);
   }
 
   .app-topbar {

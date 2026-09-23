@@ -129,6 +129,35 @@ async function getTemplateBytes(): Promise<ArrayBuffer> {
   return templateBytesCache;
 }
 
+/** The header row is the fixed meta columns plus one column per form field
+ *  (its label, falling back to its id), in `flattenFields` order — matches
+ *  Microsoft Forms' convention of using the actual question text as the
+ *  Excel column header. */
+function computeHeaderRow(form: FormDefinition): Row {
+  return [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
+}
+
+/** True for a row with no real content — SheetJS's own fallback shape for
+ *  reading a corrupted/empty file (`[""]`), or a genuinely blank row. */
+function isDegenerateRow(row: Row | undefined): boolean {
+  return !row || (row.length <= 1 && (row[0] === "" || row[0] === undefined));
+}
+
+/** Defensive self-heal: if the sheet's first row isn't our real header
+ *  (ResponseId as column 0), it's not safe to assume row 0 is a header at
+ *  all — every reader downstream (getResponseRows' `.slice(1)`, the admin
+ *  grid) treats row 0 as one regardless. This has been seen to happen for
+ *  real: earlier corruption in this tenant produced workbooks whose only
+ *  row was actual response data with no header at all, silently hiding
+ *  every response from the admin view. Rebuild a correct header and keep
+ *  any real (non-degenerate) rows as data, rather than trusting a
+ *  possibly-missing or corrupted first row. */
+function ensureHeaderRow(rows: Row[], form: FormDefinition): Row[] {
+  if (rows[0]?.[0] === META_COLUMNS[0]) return rows;
+  const dataRows = rows.filter((r) => !isDegenerateRow(r));
+  return [computeHeaderRow(form), ...dataRows];
+}
+
 async function workbookExists(driveId: string, formId: string): Promise<boolean> {
   try {
     await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}?$select=id`, {
@@ -363,7 +392,7 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
   // array in flattenFields order), so a label collision doesn't corrupt
   // data, but duplicate labels across fields in one form should still be
   // avoided in the builder (not yet enforced — noted as a known gap).
-  const headerRow: Row = [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
+  const headerRow = computeHeaderRow(form);
   const rows: Row[] = [headerRow, ...templateRows.slice(1)];
 
   // Temporary diagnostic logging — remove once the "blank workbook" issue is
@@ -408,12 +437,15 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
   const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
   const newRow: Row = [...metaValues, ...fieldValues];
 
-  return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => ({
-    rows: [...rows, newRow],
-    // rows here still includes the header row (index 0) — the new row's
-    // data-row index (header excluded) is its position before the push.
-    result: rows.length - 1,
-  }));
+  return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => {
+    const repaired = ensureHeaderRow(rows, form);
+    return {
+      rows: [...repaired, newRow],
+      // repaired still includes the header row (index 0) — the new row's
+      // data-row index (header excluded) is its position before the push.
+      result: repaired.length - 1,
+    };
+  });
 }
 
 /** Full-table scan for the row whose ResponseId (column 0) matches — the
@@ -444,7 +476,8 @@ export async function updateResponseRow(
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
   const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
 
-  return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => {
+  return withOptimisticUpdate(driveId, workbookPath(form.id), (rowsIn) => {
+    const rows = ensureHeaderRow(rowsIn, form);
     let rowIndex = cachedRowIndex;
     let current = rows[rowIndex + 1] as Row | undefined;
     if (!current || current[0] !== response.id) {

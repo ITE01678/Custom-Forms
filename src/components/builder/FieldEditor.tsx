@@ -149,6 +149,19 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
         </p>
       )}
 
+      {field.type === "singleChoice" && (
+        <div className="field-editor__toggles">
+          <label>
+            <input
+              type="checkbox"
+              checked={field.choiceDisplay === "dropdown"}
+              onChange={(e) => set({ choiceDisplay: e.target.checked ? "dropdown" : "pills" })}
+            />
+            Show as a dropdown instead of a list
+          </label>
+        </div>
+      )}
+
       {isChoice && !field.connectorAutofill?.dynamicOptions && (
         <>
           <div className="field-editor__options">

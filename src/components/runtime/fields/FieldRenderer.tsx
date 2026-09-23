@@ -157,6 +157,37 @@ function renderInput(
     case "singleChoice": {
       const predefined = new Set(options.map((o) => o.value));
       const isOtherSelected = typeof value === "string" && value !== "" ? !predefined.has(value) : false;
+
+      if (field.choiceDisplay === "dropdown") {
+        return (
+          <div>
+            <select
+              id={field.id}
+              value={isOtherSelected ? "__other__" : typeof value === "string" ? value : ""}
+              onChange={(e) => onChange(e.target.value === "__other__" ? "" : e.target.value)}
+            >
+              <option value="" disabled>
+                Choose…
+              </option>
+              {options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+              {field.allowOther && <option value="__other__">Other</option>}
+            </select>
+            {field.allowOther && isOtherSelected && (
+              <input
+                className="choice-pill__other-input"
+                placeholder="Other"
+                value={String(value ?? "")}
+                onChange={(e) => onChange(e.target.value)}
+              />
+            )}
+          </div>
+        );
+      }
+
       return (
         <div>
           {options.map((opt) => (

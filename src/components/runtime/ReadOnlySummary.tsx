@@ -28,7 +28,7 @@ export function ReadOnlySummary({ form, answers, submittedAt }: Props) {
       {fields.map((field) => (
         <div className="fill-field" key={field.id}>
           <span className="fill-field__label">{field.label}</span>
-          <p>{formatAnswer(answers[field.id] ?? null)}</p>
+          <p>{formatAnswer(answers[field.id] ?? null, field)}</p>
         </div>
       ))}
     </RuntimeShell>

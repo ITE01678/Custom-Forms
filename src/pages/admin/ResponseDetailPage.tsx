@@ -145,7 +145,7 @@ export function ResponseDetailPage() {
         {fields.map((field) => (
           <div className="fill-field" key={field.id}>
             <span className="fill-field__label">{field.label}</span>
-            <p>{formatAnswer(response.answers[field.id] ?? null)}</p>
+            <p>{formatAnswer(response.answers[field.id] ?? null, field)}</p>
           </div>
         ))}
       </div>
@@ -177,8 +177,9 @@ export function ResponseDetailPage() {
                         ? "—"
                         : entry.changedFields
                             .map((c) => {
-                              const label = fields.find((f) => f.id === c.fieldId)?.label ?? c.fieldId;
-                              return `${label}: ${formatAnswer(c.oldValue as AnswerValue)} → ${formatAnswer(c.newValue as AnswerValue)}`;
+                              const changedField = fields.find((f) => f.id === c.fieldId);
+                              const label = changedField?.label ?? c.fieldId;
+                              return `${label}: ${formatAnswer(c.oldValue as AnswerValue, changedField)} → ${formatAnswer(c.newValue as AnswerValue, changedField)}`;
                             })
                             .join("; ")}
                     </td>

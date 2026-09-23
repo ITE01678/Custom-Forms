@@ -61,6 +61,29 @@ function isFileAttachmentArray(v: AnswerValue): v is FileAttachment[] {
   return Array.isArray(v) && (v.length === 0 ? false : typeof v[0] === "object");
 }
 
+/** A static choice field's `value` (often an opaque key like "option-1", or
+ *  a connector's raw column value like an email) is meaningless to anyone
+ *  opening the workbook directly — resolve it to the designer-facing label
+ *  before it ever reaches a cell, matching Microsoft Forms' own export
+ *  convention of always showing the visible choice text. Falls back to the
+ *  raw value when there's no match: connector-driven choice answers are
+ *  already label-based by the time they get here (see
+ *  DynamicChoiceField.tsx), and a free-text "Other" answer never matches
+ *  any option to begin with. */
+function resolveOptionLabel(field: FormField, rawValue: string): string {
+  return field.options?.find((o) => o.value === rawValue)?.label ?? rawValue;
+}
+
+/** Inverse of resolveOptionLabel, for reconstructing the original `value`
+ *  from a cell that now holds the label — needed so editing an existing
+ *  response can still correctly pre-select the right option (comparison
+ *  there is against `option.value`). Only meaningful for static options;
+ *  falls back to the raw (label) string otherwise, which is exactly what a
+ *  connector-driven field's answer already needs — see DynamicChoiceField.tsx. */
+function resolveOptionValue(field: FormField, rawLabel: string): string {
+  return field.options?.find((o) => o.label === rawLabel)?.value ?? rawLabel;
+}
+
 function toCellValue(field: FormField, value: AnswerValue | undefined): string | number | boolean {
   if (value === undefined || value === null) return "";
   if (isRepeatingTableValue(value)) return JSON.stringify(value);
@@ -68,6 +91,10 @@ function toCellValue(field: FormField, value: AnswerValue | undefined): string |
   // string — a "pretty" rendering would lose the url/size needed to edit
   // the response later, since Excel is this app's system of record.
   if (field.type === "fileUpload" && isFileAttachmentArray(value)) return JSON.stringify(value);
+  if (field.type === "singleChoice" && typeof value === "string") return resolveOptionLabel(field, value);
+  if (field.type === "multiChoice" && Array.isArray(value)) {
+    return (value as string[]).map((v) => resolveOptionLabel(field, v)).join(", ");
+  }
   if (Array.isArray(value)) return value.join(", "); // multiChoice — flat Excel cells can't hold arrays
   return value;
 }
@@ -81,7 +108,15 @@ function fromCellValue(field: FormField, raw: unknown): AnswerValue {
     return field.type === "multiChoice" || field.type === "fileUpload" ? [] : null;
   }
   if (field.type === "multiChoice") {
-    return typeof raw === "string" ? raw.split(", ").filter(Boolean) : [];
+    return typeof raw === "string"
+      ? raw
+          .split(", ")
+          .filter(Boolean)
+          .map((label) => resolveOptionValue(field, label))
+      : [];
+  }
+  if (field.type === "singleChoice") {
+    return typeof raw === "string" ? resolveOptionValue(field, raw) : String(raw);
   }
   if (field.type === "fileUpload") {
     try {

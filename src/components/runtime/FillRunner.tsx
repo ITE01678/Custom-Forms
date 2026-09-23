@@ -231,7 +231,7 @@ export function FillRunner({
               <span className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
                 {field.label}
               </span>
-              <p className="fill-field__readonly-value">{formatAnswer(answers[field.id] ?? null)}</p>
+              <p className="fill-field__readonly-value">{formatAnswer(answers[field.id] ?? null, field)}</p>
             </div>
           ))}
 

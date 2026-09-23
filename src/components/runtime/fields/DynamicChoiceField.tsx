@@ -37,12 +37,20 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
 
   const selected = isMulti ? (Array.isArray(value) ? (value as string[]).filter((v) => typeof v === "string") : []) : typeof value === "string" ? value : "";
 
-  function toggle(optValue: string) {
+  // The stored answer is the option's LABEL, not its `value` (e.g. the
+  // employee's name, not their email) — connector-resolved rows are live
+  // data, gone by the time the response is written to Excel, so there's no
+  // way to reverse a stored value back into a human-readable label at
+  // export time (unlike a static choice field's fixed field.options, which
+  // toCellValue/fromCellValue in excel.ts CAN safely round-trip). Using the
+  // label as the answer itself sidesteps that entirely, at the cost of not
+  // separately capturing a stable id (e.g. email) for this answer.
+  function toggle(opt: { value: string; label: string }) {
     if (isMulti) {
       const current = selected as string[];
-      onChange(current.includes(optValue) ? current.filter((v) => v !== optValue) : [...current, optValue]);
+      onChange(current.includes(opt.label) ? current.filter((v) => v !== opt.label) : [...current, opt.label]);
     } else {
-      onChange(optValue);
+      onChange(opt.label);
     }
   }
 
@@ -66,22 +74,37 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
       )}
       {status === "empty" && <p className="fill-field__help">No matching records found.</p>}
       {(status === "resolved" || status === "empty") && options.length > 0 && (
-        <div>
-          {options.map((opt) => {
-            const isSelected = isMulti ? (selected as string[]).includes(opt.value) : selected === opt.value;
-            return (
-              <label key={opt.value} className={`choice-pill ${isSelected ? "is-selected" : ""}`}>
-                <input
-                  type={isMulti ? "checkbox" : "radio"}
-                  name={field.id}
-                  checked={isSelected}
-                  onChange={() => toggle(opt.value)}
-                />
-                {opt.label}
-              </label>
-            );
-          })}
-        </div>
+        <>
+          {!isMulti && field.choiceDisplay === "dropdown" ? (
+            <select value={selected as string} onChange={(e) => onChange(e.target.value)}>
+              <option value="" disabled>
+                Choose…
+              </option>
+              {options.map((opt) => (
+                <option key={opt.value} value={opt.label}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div>
+              {options.map((opt) => {
+                const isSelected = isMulti ? (selected as string[]).includes(opt.label) : selected === opt.label;
+                return (
+                  <label key={opt.value} className={`choice-pill ${isSelected ? "is-selected" : ""}`}>
+                    <input
+                      type={isMulti ? "checkbox" : "radio"}
+                      name={field.id}
+                      checked={isSelected}
+                      onChange={() => toggle(opt)}
+                    />
+                    {opt.label}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {field.helpText && <span className="fill-field__help">{field.helpText}</span>}

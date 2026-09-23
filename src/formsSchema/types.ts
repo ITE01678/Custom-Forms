@@ -232,6 +232,10 @@ export interface FormField {
   options?: { value: string; label: string; imageUrl?: string }[]; // choice types
   allowOther?: boolean; // choice types — adds a free-text "Other" option, MS-Forms style
   shuffleOptions?: boolean; // choice types — randomize option order per respondent
+  /** singleChoice only — "dropdown" renders a native <select> instead of
+   *  radio pills, MS-Forms style. Not offered for multiChoice (neither does
+   *  MS Forms — a multi-select <select multiple> is a poor mobile/UX fit). */
+  choiceDisplay?: "pills" | "dropdown";
   columns?: RepeatingTableColumn[]; // repeatingTable type
   validation?: FieldValidation;
   visibility?: ConditionNode; // field-level show/hide

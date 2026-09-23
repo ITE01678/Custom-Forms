@@ -1,4 +1,4 @@
-import { createListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, deleteListItem, queryListItems, updateListItem, type ListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 import { getFormById } from "./forms";
 import { appendResponseRow, findRowIndexByResponseId, updateResponseRow } from "./excel";
@@ -82,6 +82,24 @@ export async function getPendingForUser(email: string) {
   return queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
     filter: `fields/SubmitterEmail eq '${email}' and fields/Status ne 'done'`,
   });
+}
+
+/** One form's stragglers — the per-form filtered view linked from the
+ *  builder page, so an admin doesn't have to scan the tenant-wide list. */
+export async function getUnresolvedForForm(formId: string) {
+  return queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
+    filter: `fields/FormId eq '${formId}' and fields/Status ne 'done'`,
+  });
+}
+
+/** Best-effort cleanup for a hard form delete — removes every SyncQueue
+ *  entry for this form regardless of status, so a deleted form doesn't
+ *  leave orphaned "failed"/"pending" rows pointing at nothing. */
+export async function deleteAllForForm(formId: string): Promise<void> {
+  const items = await queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
+    filter: `fields/FormId eq '${formId}'`,
+  });
+  await Promise.all(items.map((item) => deleteListItem(LIST_NAMES.syncQueue, item.id)));
 }
 
 /**

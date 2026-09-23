@@ -1,6 +1,7 @@
-import { createListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, deleteListItem, queryListItems, updateListItem, type ListItem } from "./lists";
 import { ensureFormsSiteStructure, LIBRARY_NAMES, LIST_NAMES } from "./bootstrap";
-import { ensureWorkbookForForm } from "./excel";
+import { deleteResponseWorkbookIfExists, ensureWorkbookForForm, getResponseRows } from "./excel";
+import { deleteAllForForm } from "./syncQueue";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { graphFetch, graphUploadBinary } from "./graphClient";
 import { GraphError } from "./graphErrors";
@@ -179,4 +180,73 @@ export async function getFormVersion(formId: string, version: number): Promise<F
     if (err instanceof GraphError && err.status === 404) return null;
     throw err;
   }
+}
+
+/** A plain driveItem webUrl to a form's latest published snapshot — for an
+ *  admin to open it directly in SharePoint. Null if never published. */
+export async function getFormVersionWebUrl(form: FormDefinition): Promise<string | null> {
+  if (!form.latestPublishedVersion) return null;
+  const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.formVersions);
+  try {
+    const item = await graphFetch<{ webUrl: string }>(
+      `/drives/${driveId}/root:/${form.id}/v${form.latestPublishedVersion}.json?$select=webUrl`,
+      { scopes: graphScopes.sites }
+    );
+    return item.webUrl;
+  } catch (err) {
+    if (err instanceof GraphError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/** Takes a form out of the active list without destroying anything — the
+ *  only option once it has responses (see deleteForm). Reversible in
+ *  principle (nothing here prevents flipping status back), though there's
+ *  no "unarchive" action in the UI yet. */
+export async function archiveForm(stored: StoredForm): Promise<StoredForm> {
+  const now = new Date().toISOString();
+  const form: FormDefinition = { ...stored.form, status: "archived", updatedAt: now };
+
+  await updateListItem<FormsListFields>(LIST_NAMES.forms, stored.itemId, {
+    Status: form.status,
+    DraftSchemaJson: JSON.stringify(form),
+    UpdatedAt: now,
+  });
+
+  return { itemId: stored.itemId, form };
+}
+
+/** Best-effort: deletes the FormVersions/{formId}/ folder (all published
+ *  snapshots) recursively. A 404 (nothing published yet) is not an error. */
+async function deleteFormVersionsFolderIfExists(formId: string): Promise<void> {
+  const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.formVersions);
+  try {
+    await graphFetch(`/drives/${driveId}/root:/${formId}`, { method: "DELETE", scopes: graphScopes.sites });
+  } catch (err) {
+    if (err instanceof GraphError && err.status === 404) return;
+    throw err;
+  }
+}
+
+/**
+ * Permanently deletes a form — its Forms List item, response workbook,
+ * published snapshots, and SyncQueue entries. Only allowed with zero
+ * responses: a form anyone has actually answered can't be hard-deleted
+ * (their data would vanish with no audit trail), so archiveForm is the
+ * only option once responses exist — enforced here, not just in the UI,
+ * since this is a destructive, irreversible operation.
+ */
+export async function deleteForm(stored: StoredForm): Promise<void> {
+  const responseCount = (await getResponseRows(stored.form)).length;
+  if (responseCount > 0) {
+    throw new Error(
+      `This form has ${responseCount} response(s) — it can't be deleted. Archive it instead to remove it ` +
+        `from the active list without losing its responses.`
+    );
+  }
+
+  await deleteListItem(LIST_NAMES.forms, stored.itemId);
+  await deleteResponseWorkbookIfExists(stored.form.id);
+  await deleteFormVersionsFolderIfExists(stored.form.id);
+  await deleteAllForForm(stored.form.id);
 }

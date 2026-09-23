@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getFormById, publishForm, saveDraft } from "../../services/forms";
+import { useNavigate, useParams } from "react-router-dom";
+import { archiveForm, deleteForm, getFormById, publishForm, saveDraft } from "../../services/forms";
 import { listConnectorConfigs } from "../../services/connectorConfigs";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { SectionEditor } from "../../components/builder/SectionEditor";
@@ -11,9 +11,11 @@ import { FormSettingsPanel } from "../../components/builder/FormSettingsPanel";
 import { RoutingPanel } from "../../components/builder/RoutingPanel";
 import { BranchingPanel } from "../../components/builder/BranchingPanel";
 import { PreviewModal } from "../../components/builder/PreviewModal";
+import { FormFilesPanel } from "../../components/builder/FormFilesPanel";
 import { RichTextEditor } from "../../components/builder/RichTextEditor";
 import { TextStyleControls } from "../../components/builder/TextStyleControls";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
 
@@ -29,6 +31,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function BuilderPage() {
   const { formId } = useParams<{ formId: string }>();
+  const navigate = useNavigate();
   const { stored, isDirty, isSaving, isPublishing, load, markSaved, setSaving, setPublishing, updateForm, addSection } =
     useFormBuilderStore();
 
@@ -37,6 +40,9 @@ export function BuilderPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [connectorOptions, setConnectorOptions] = useState<ConnectorOption[]>([]);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!formId) return;
@@ -94,6 +100,33 @@ export function BuilderPage() {
       setSaveError(err instanceof Error ? err.message : String(err));
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function handleArchive() {
+    setIsArchiving(true);
+    setSaveError(null);
+    try {
+      const updated = await archiveForm(stored!);
+      markSaved(updated);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsArchiving(false);
+    }
+  }
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    setSaveError(null);
+    try {
+      await deleteForm(stored!);
+      navigate("/");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+      setShowDeleteConfirm(false);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -162,12 +195,38 @@ export function BuilderPage() {
         <button className="btn-primary" onClick={handlePublish} disabled={isPublishing || sortedSections.length === 0}>
           {isPublishing ? "Publishing…" : "Publish"}
         </button>
+        {form.status !== "archived" && (
+          <button onClick={handleArchive} disabled={isArchiving}>
+            {isArchiving ? "Archiving…" : "Archive"}
+          </button>
+        )}
+        <button className="btn-danger" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting}>
+          Delete
+        </button>
         {saveError && <span className="error-text">{saveError}</span>}
       </div>
 
       <p className="builder-owner">Owner: {form.owner.upn}</p>
 
+      <FormFilesPanel form={form} />
+
       {showPreview && <PreviewModal form={form} onClose={() => setShowPreview(false)} />}
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Delete this form?"
+          message={
+            `This permanently deletes "${form.title}", its response workbook, published snapshots, and sync ` +
+            "queue entries. Only allowed when it has zero responses — if it has any, you'll be asked to archive " +
+            "it instead. This can't be undone."
+          }
+          confirmLabel="Delete permanently"
+          danger
+          busy={isDeleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
       </div>
     </div>
   );

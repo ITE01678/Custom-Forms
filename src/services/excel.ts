@@ -40,7 +40,7 @@ export const META_COLUMNS = [
   "Status",
 ] as const;
 
-function workbookPath(formId: string): string {
+export function workbookPath(formId: string): string {
   return `${formId}.xlsx`;
 }
 
@@ -564,4 +564,37 @@ export async function getResponseRows(form: FormDefinition): Promise<ResponseRow
 
 export function responseGridColumns(form: FormDefinition): string[] {
   return [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
+}
+
+/** Best-effort cleanup for a hard form delete — a 404 (nothing to delete)
+ *  is not an error here, unlike everywhere else this module treats it. */
+export async function deleteResponseWorkbookIfExists(formId: string): Promise<void> {
+  const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
+  try {
+    await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}`, {
+      method: "DELETE",
+      scopes: graphScopes.sites,
+    });
+  } catch (err) {
+    if (err instanceof GraphError && err.status === 404) return;
+    throw err;
+  }
+}
+
+/** A plain driveItem webUrl, for an admin to open the file directly in
+ *  SharePoint's own web UI in a new tab — safe for that (unlike rendering
+ *  it inline, see graphClient.ts's doc comment on graphFetchBinary), since
+ *  the browser already carries the signed-in user's own SharePoint session. */
+export async function getResponseWorkbookWebUrl(formId: string): Promise<string | null> {
+  const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
+  try {
+    const item = await graphFetch<{ webUrl: string }>(
+      `/drives/${driveId}/root:/${workbookPath(formId)}?$select=webUrl`,
+      { scopes: graphScopes.sites }
+    );
+    return item.webUrl;
+  } catch (err) {
+    if (err instanceof GraphError && err.status === 404) return null;
+    throw err;
+  }
 }

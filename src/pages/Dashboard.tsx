@@ -79,7 +79,7 @@ export function Dashboard() {
                 </div>
                 {form.description && <p className="form-card__description">{form.description}</p>}
                 <p className="form-card__meta">Updated {new Date(form.updatedAt).toLocaleDateString()}</p>
-                {form.status === "published" && (
+                {(form.status === "published" || form.status === "archived") && form.latestPublishedVersion && (
                   <span
                     className="form-card__responses"
                     onClick={(e) => {

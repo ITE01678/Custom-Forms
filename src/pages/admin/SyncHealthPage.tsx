@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getUnresolved, retryItem, type SyncQueueFields } from "../../services/syncQueue";
+import { useSearchParams } from "react-router-dom";
+import { getUnresolved, getUnresolvedForForm, retryItem, type SyncQueueFields } from "../../services/syncQueue";
 import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { ListItem } from "../../services/lists";
 
@@ -11,6 +12,9 @@ import type { ListItem } from "../../services/lists";
  * investigates it.
  */
 export function SyncHealthPage() {
+  const [searchParams] = useSearchParams();
+  const formId = searchParams.get("formId");
+
   const [items, setItems] = useState<ListItem<SyncQueueFields>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +24,7 @@ export function SyncHealthPage() {
     setLoading(true);
     setError(null);
     try {
-      setItems(await getUnresolved());
+      setItems(await (formId ? getUnresolvedForForm(formId) : getUnresolved()));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -30,7 +34,8 @@ export function SyncHealthPage() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formId]);
 
   async function handleRetry(item: ListItem<SyncQueueFields>) {
     setRetrying(item.id);
@@ -49,7 +54,11 @@ export function SyncHealthPage() {
       <AppTopbar backTo={{ to: "/", label: "My forms" }} />
       <div className="page page--wide">
       <h1>Sync Health</h1>
-      <p>Responses still pending or failed sync to their Excel workbook, across all forms.</p>
+      <p>
+        {formId
+          ? "Responses still pending or failed sync to this form's Excel workbook."
+          : "Responses still pending or failed sync to their Excel workbook, across all forms."}
+      </p>
 
       {error && <p className="error-text">{error}</p>}
       {loading ? (

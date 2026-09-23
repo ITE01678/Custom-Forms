@@ -143,6 +143,18 @@ button:disabled {
   border-color: transparent;
 }
 
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+  border-color: color-mix(in srgb, var(--danger) 85%, black);
+}
+
 input[type="text"],
 input[type="number"],
 input[type="date"],
@@ -195,6 +207,58 @@ textarea {
   background: color-mix(in srgb, var(--success) 14%, transparent);
   color: var(--success);
   border-color: transparent;
+}
+
+.status-pill--archived {
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+  color: var(--text-muted);
+  border-color: transparent;
+}
+
+.confirm-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: color-mix(in srgb, black 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.confirm-dialog {
+  background: var(--surface);
+  border-radius: var(--radius, 0.5rem);
+  box-shadow: var(--shadow-lg);
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+}
+
+.confirm-dialog h2 {
+  margin-top: 0;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.form-files-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.form-files-panel a {
+  color: var(--accent);
 }
 
 /* --- Landing page (signed-out) --- */

@@ -94,45 +94,21 @@ export async function submitResponse(
     payload: response,
   });
 
+  // Only the Excel write itself is retried here. appendResponseRow has no
+  // idempotency check — it blindly appends a row every call — so once it
+  // succeeds, nothing below may ever trigger another call to it. Previously
+  // markDone/upsertIndex/addAuditEntry were inside this same retry unit:
+  // if any of THEM threw (a throttled/network-blipped SharePoint List call,
+  // unrelated to Excel), the catch retried the whole block, including the
+  // already-succeeded appendResponseRow — silently appending a second row
+  // for the same response while upsertIndex's own idempotency masked the
+  // duplication from the index (it just repoints to the newer ghost row).
   const maxAttempts = 3;
+  let rowIndex: number | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const rowIndex = await appendResponseRow(form, response);
-      await markDone(queueItemId);
-      await upsertIndex({ formId: form.id, responseId: response.id, submitterEmail: respondentUpn, rowIndex });
-      await addAuditEntry({
-        formId: form.id,
-        responseId: response.id,
-        byEmail: respondentUpn,
-        action: "submit",
-        changedFields: Object.entries(answers).map(([fieldId, newValue]) => ({ fieldId, oldValue: null, newValue })),
-      });
-
-      // Deliberately OUTSIDE the retry unit above: appendResponseRow has no
-      // idempotency check, so if routing kickoff threw from inside this try
-      // block, the catch below would retry the whole thing on the next loop
-      // iteration and duplicate the row. Routing kickoff is its own
-      // best-effort step — a response is fully "submitted" whether or not
-      // its (optional) approval chain successfully started.
-      try {
-        const routing = await initRoutingState(form, response.id);
-        if (routing) {
-          response.routing = routing;
-          await addAuditEntry({
-            formId: form.id,
-            responseId: response.id,
-            byEmail: respondentUpn,
-            action: "route",
-            changedFields: [],
-          });
-          await notifyCurrentStep(form, response);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[routing] Could not start approval routing for this response:", err);
-      }
-
-      return response;
+      rowIndex = await appendResponseRow(form, response);
+      break;
     } catch (err) {
       // This was previously silent — a failure here only ever showed up as
       // a SyncQueue "failed" row on the admin Sync Health page, with no
@@ -146,6 +122,53 @@ export async function submitResponse(
         await sleep(500 * attempt);
       }
     }
+  }
+
+  if (rowIndex === null) {
+    // Every attempt failed — already recorded as "failed" in SyncQueue above
+    // for the admin Sync Health page to recover. Still return a normal
+    // FormResponse, matching the "tell the user submitted either way"
+    // durability model documented on this function.
+    return response;
+  }
+
+  // The Excel write is done. Everything below is best-effort bookkeeping —
+  // failures here must never loop back to appendResponseRow (see comment
+  // above), so they're caught and logged, not retried as a unit.
+  try {
+    await markDone(queueItemId);
+    await upsertIndex({ formId: form.id, responseId: response.id, submitterEmail: respondentUpn, rowIndex });
+    await addAuditEntry({
+      formId: form.id,
+      responseId: response.id,
+      byEmail: respondentUpn,
+      action: "submit",
+      changedFields: Object.entries(answers).map(([fieldId, newValue]) => ({ fieldId, oldValue: null, newValue })),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[submitResponse] post-write bookkeeping failed (response IS saved in Excel)", err);
+  }
+
+  // Routing kickoff is its own best-effort step — a response is fully
+  // "submitted" whether or not its (optional) approval chain successfully
+  // started.
+  try {
+    const routing = await initRoutingState(form, response.id);
+    if (routing) {
+      response.routing = routing;
+      await addAuditEntry({
+        formId: form.id,
+        responseId: response.id,
+        byEmail: respondentUpn,
+        action: "route",
+        changedFields: [],
+      });
+      await notifyCurrentStep(form, response);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn("[routing] Could not start approval routing for this response:", err);
   }
 
   return response;
@@ -200,23 +223,20 @@ export async function updateResponse(params: {
     payload: updated,
   });
 
+  // Same restructuring as submitResponse above, and for the same reason:
+  // updateResponseRow overwrites by ResponseId rather than appending, so a
+  // retry doesn't duplicate the row — but without this split, a
+  // markDone/upsertIndex/addAuditEntry failure would retry the whole block
+  // and call updateResponseRow again, double-incrementing EditCount and
+  // overwriting LastEditedAt with the retry's timestamp for what the user
+  // experiences as one single edit.
   const maxAttempts = 3;
+  let rowIndex: number | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const rowIndex = await updateResponseRow(form, updated, params.rowIndexHint, editorEmail);
-      await markDone(queueItemId);
-      await upsertIndex({ formId: form.id, responseId: updated.id, submitterEmail: updated.respondentUpn, rowIndex });
-      await addAuditEntry({
-        formId: form.id,
-        responseId: updated.id,
-        byEmail: editorEmail,
-        action: params.actionOverride ?? (editorEmail === updated.respondentUpn ? "self-edit" : "admin-edit"),
-        changedFields,
-        reason: params.reason,
-      });
-      return updated;
+      rowIndex = await updateResponseRow(form, updated, params.rowIndexHint, editorEmail);
+      break;
     } catch (err) {
-      // See the matching comment in submitResponse above.
       // eslint-disable-next-line no-console
       console.error("[updateResponse] updateResponseRow attempt failed", { attempt, maxAttempts, err });
       if (attempt === maxAttempts) {
@@ -225,6 +245,24 @@ export async function updateResponse(params: {
         await sleep(500 * attempt);
       }
     }
+  }
+
+  if (rowIndex === null) return updated;
+
+  try {
+    await markDone(queueItemId);
+    await upsertIndex({ formId: form.id, responseId: updated.id, submitterEmail: updated.respondentUpn, rowIndex });
+    await addAuditEntry({
+      formId: form.id,
+      responseId: updated.id,
+      byEmail: editorEmail,
+      action: params.actionOverride ?? (editorEmail === updated.respondentUpn ? "self-edit" : "admin-edit"),
+      changedFields,
+      reason: params.reason,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[updateResponse] post-write bookkeeping failed (edit IS saved in Excel)", err);
   }
 
   return updated;

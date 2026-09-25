@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { getFormBySlug, getFormVersion } from "../../services/forms";
 import { getMyResponse, submitResponse, updateResponse } from "../../services/responses";
+import { getRoutingState } from "../../services/responseRouting";
 import { getDraft, saveDraft, deleteDraft } from "../../services/drafts";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { initialSectionAccess } from "../../formsSchema/routingAccess";
@@ -103,9 +104,21 @@ export function FillPage() {
 
         const { mode } = latest.editPolicy;
         const selfCanEdit = mode === "self-edit" || mode === "self-and-admin";
-        const editable = selfCanEdit && isWithinEditWindow(existing.response, latest);
 
+        // Once a response has entered an approval chain — awaiting a
+        // decision, or already decided — self-edit must not silently bypass
+        // it: the approver's page only re-reads the response when they open
+        // it, so an edit here would change what they're approving without
+        // their knowledge (or, once already approved, alter something that
+        // was signed off on). This is independent of editPolicy/the edit
+        // window; a response either has routing or it doesn't.
+        const routingEntry = latest.routing && latest.routing.mode !== "none"
+          ? await getRoutingState(latest.id, existing.response.id)
+          : null;
         if (cancelled) return;
+
+        const editable = selfCanEdit && !routingEntry && isWithinEditWindow(existing.response, latest);
+
         if (editable) {
           setGate({ mode: "edit", form: pinned, response: existing.response, rowIndex: existing.rowIndex });
         } else {

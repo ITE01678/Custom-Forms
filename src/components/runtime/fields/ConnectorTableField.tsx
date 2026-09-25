@@ -9,8 +9,13 @@ interface Props {
   field: FormField;
   respondentEmail: string;
   priorAnswers: Record<string, AnswerValue>;
+  value: AnswerValue;
   onChange: (value: AnswerValue) => void;
   error?: string;
+}
+
+function isRepeatingTableValue(v: AnswerValue): v is RepeatingTableValue {
+  return !!v && typeof v === "object" && !Array.isArray(v) && "rows" in v;
 }
 
 function toRepeatingValue(
@@ -32,13 +37,20 @@ function toRepeatingValue(
  * failure. Automatic-mode empty/error presentation still follows the
  * field's configured emptyResultBehavior/errorBehavior.
  */
-export function ConnectorTableField({ field, respondentEmail, priorAnswers, onChange, error }: Props) {
+export function ConnectorTableField({ field, respondentEmail, priorAnswers, value, onChange, error }: Props) {
   const { status, rows, error: autofillError, retry } = useAutofill(field, respondentEmail, priorAnswers);
   const columns = field.columns ?? [];
   const cfg = field.connectorAutofill;
   const allowOverride = cfg?.allowManualOverride !== false;
-  const [mode, setMode] = useState<"auto" | "manual">("auto");
-  const [manualRows, setManualRows] = useState<Record<string, string | number | null>[]>([]);
+  // meta.source tells us definitively whether the existing answer (if any)
+  // was a respondent's manual entry — unlike AutofillField's scalar case,
+  // no guessing needed. Starting in Manual with it preserved avoids the
+  // same class of bug: without this, the auto-resolve effect below fires
+  // the instant the connector settles and overwrites the manual rows with
+  // fresh connector data on resume/edit/approval-review remount.
+  const existingManualRows = isRepeatingTableValue(value) && value.meta?.source === "manual" ? value.rows : null;
+  const [mode, setMode] = useState<"auto" | "manual">(() => (existingManualRows ? "manual" : "auto"));
+  const [manualRows, setManualRows] = useState<Record<string, string | number | null>[]>(() => existingManualRows ?? []);
 
   useEffect(() => {
     if (mode !== "auto") return;

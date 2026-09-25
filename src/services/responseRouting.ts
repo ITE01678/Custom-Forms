@@ -89,6 +89,16 @@ export function advanceRoutingState(
   action: "approved" | "rejected",
   reason?: string
 ): ResponseRoutingState {
+  // Without this, a routing step with more than one valid recipient (or an
+  // approver with a stale tab still open after someone else already acted)
+  // could apply a second decision on top of an already-resolved chain — e.g.
+  // approver B clicking Approve after approver A already rejected would
+  // silently flip a rejected response back to approved, with a
+  // reject-then-approve history on the same step.
+  if (current.status !== "in-progress") {
+    throw new Error(`This response's approval has already been decided (${current.status}) — no further action is possible.`);
+  }
+
   const step = form.routing?.steps[current.currentStepIndex];
   const entry: RoutingHistoryEntry = { stepId: step?.id ?? "", actedBy, action, at: new Date().toISOString(), reason };
   const history = [...current.history, entry];

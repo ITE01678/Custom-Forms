@@ -9,12 +9,21 @@ interface Props {
   field: FormField;
   respondentEmail: string;
   priorAnswers: Record<string, AnswerValue>;
+  value: AnswerValue;
   onChange: (value: AnswerValue) => void;
   error?: string;
   /** Only needed for fileUpload fields — threaded through so the manual-
    *  override path can use the real uploader instead of a text input. */
   formId?: string;
   responseId?: string;
+}
+
+/** Null/undefined, "", and [] all count as "nothing here yet" — anything
+ *  else is a real answer that must not be silently overwritten. */
+function hasRealAnswer(value: AnswerValue): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
 }
 
 /** Derives a display name for an auto-resolved file reference from its URL —
@@ -35,10 +44,20 @@ function fileNameFromUrl(url: string): string {
  *  fields use ConnectorTableField instead. fileUpload fields resolve to a
  *  file *reference* (a URL) rather than a scalar, and fall back to the real
  *  uploader when the respondent switches to Manual. */
-export function AutofillField({ field, respondentEmail, priorAnswers, onChange, error, formId, responseId }: Props) {
+export function AutofillField({ field, respondentEmail, priorAnswers, value, onChange, error, formId, responseId }: Props) {
   const { status, rows, error: autofillError, retry } = useAutofill(field, respondentEmail, priorAnswers);
-  const [mode, setMode] = useState<"auto" | "manual">("auto");
-  const [manualValue, setManualValue] = useState("");
+  // Start in Manual (preserving whatever's already there) if this field
+  // already has a real answer when it mounts — resuming a saved draft, or
+  // reopening an existing response for self-edit/admin-edit/approval
+  // review. Without this, the auto-resolve effect below fires the instant
+  // the connector/Graph lookup settles and silently overwrites a
+  // respondent's manual override (or a since-changed auto value an
+  // approver is reviewing) before anyone touches the field. Only a
+  // genuinely fresh, unanswered field starts in Auto.
+  const [mode, setMode] = useState<"auto" | "manual">(() => (hasRealAnswer(value) ? "manual" : "auto"));
+  const [manualValue, setManualValue] = useState(() =>
+    typeof value === "string" || typeof value === "number" ? String(value) : ""
+  );
   const isFileUpload = field.type === "fileUpload";
 
   const allowOverride =
@@ -112,7 +131,7 @@ export function AutofillField({ field, respondentEmail, priorAnswers, onChange, 
             field={field}
             formId={formId}
             responseId={responseId}
-            value={null}
+            value={value}
             onChange={onChange}
           />
         ) : (

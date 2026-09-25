@@ -1,7 +1,7 @@
 import { createListItem, deleteListItem, queryListItems, updateListItem, type ListItem } from "./lists";
 import { ensureFormsSiteStructure, LIBRARY_NAMES, LIST_NAMES } from "./bootstrap";
 import { deleteResponseWorkbookIfExists, ensureWorkbookForForm, getResponseRows } from "./excel";
-import { deleteAllForForm } from "./syncQueue";
+import { deleteAllForForm, getUnresolvedForForm } from "./syncQueue";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { graphFetch, graphUploadBinary } from "./graphClient";
 import { GraphError } from "./graphErrors";
@@ -242,6 +242,25 @@ export async function deleteForm(stored: StoredForm): Promise<void> {
     throw new Error(
       `This form has ${responseCount} response(s) — it can't be deleted. Archive it instead to remove it ` +
         `from the active list without losing its responses.`
+    );
+  }
+
+  // getResponseRows only counts rows that have actually landed in the
+  // Excel workbook — the whole point of the SyncQueue-first durability
+  // model is that a response can be durably recorded there before (or even
+  // if it never) lands in Excel. Without this check, a response stuck as
+  // "failed" after every appendResponseRow retry (visible on the admin Sync
+  // Health page, exactly the case it exists to catch) would read as "0
+  // responses" here — deleting the form would then also wipe that very
+  // SyncQueue row (deleteAllForForm below), destroying the response
+  // permanently with no trace anywhere, despite the respondent having been
+  // told "submitted".
+  const unresolved = await getUnresolvedForForm(stored.form.id);
+  if (unresolved.length > 0) {
+    throw new Error(
+      `This form has ${unresolved.length} response(s) still pending or failed sync (see Sync Health) — it can't ` +
+        `be deleted until those are resolved, since deleting would destroy them with no way to recover. Archive ` +
+        `it instead, or resolve the sync issues first.`
     );
   }
 

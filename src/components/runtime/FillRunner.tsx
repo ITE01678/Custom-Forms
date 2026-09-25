@@ -300,6 +300,7 @@ function renderField(
         field={field}
         respondentEmail={respondentEmail}
         priorAnswers={answers}
+        value={answers[field.id] ?? null}
         onChange={onChange}
         error={error}
       />
@@ -339,6 +340,7 @@ function renderField(
         field={field}
         respondentEmail={respondentEmail}
         priorAnswers={answers}
+        value={answers[field.id] ?? null}
         formId={formId}
         responseId={responseId}
         onChange={onChange}

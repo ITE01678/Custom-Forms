@@ -34,6 +34,21 @@ export function useAutofill(
     rows: [],
   });
 
+  // A connector-autofill field's lookupKeyExpression can reference another
+  // field's answer (documented, supported pattern — e.g. "{{fields.department.value}}"
+  // filtering who shows up in a dependent picker). There's no cheap way to
+  // know which specific field(s) a given template references without
+  // parsing it, so depend on the whole answers object's CONTENT — a
+  // JSON.stringify comparison key is a pragmatic tradeoff (cheap enough for
+  // realistic form sizes) that's still far better than the alternative:
+  // resolve() below was previously memoized on field.id alone, so it
+  // captured priorAnswers/respondentEmail from the render it first mounted
+  // in and never got a fresh closure for as long as the field stayed
+  // mounted — a dependent field's options silently never refreshed when
+  // the field it depended on changed, and clicking "Retry" didn't help
+  // either, since retry is this same stale function.
+  const priorAnswersKey = JSON.stringify(priorAnswers);
+
   const resolve = useCallback(async () => {
     if (field.fillMode === "manual") return;
     setState({ status: "loading", rows: [] });
@@ -72,7 +87,7 @@ export function useAutofill(
       setState({ status: "error", rows: [], error: err instanceof Error ? err.message : String(err) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [field.id]);
+  }, [field.id, respondentEmail, priorAnswersKey]);
 
   useEffect(() => {
     resolve();

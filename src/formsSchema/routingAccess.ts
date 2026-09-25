@@ -65,7 +65,14 @@ export function stepSectionAccess(form: FormDefinition, stepIndex: number): Sect
     return { visibleSectionIds: all, editableSectionIds: all, unrestricted: true };
   }
 
-  const visible = new Set<string>(form.routing?.initialSectionIds ?? [...allSectionIds(form)]);
+  // Matches initialSectionAccess's own "empty array = no restriction"
+  // contract (and the builder's own instructions to designers) — `??` alone
+  // only catches null/undefined, not [], so an intentionally-unrestricted
+  // initial fill (initialSectionIds: []) was silently seeding `visible` as
+  // EMPTY instead of "every section", making every section the respondent
+  // filled but nobody explicitly assigned invisible to the first approver.
+  const initialIds = form.routing?.initialSectionIds;
+  const visible = new Set<string>(!initialIds || initialIds.length === 0 ? allSectionIds(form) : initialIds);
   for (let i = 0; i <= stepIndex; i++) {
     const ids = steps[i]?.editableSectionIds;
     if (ids && ids.length > 0) {

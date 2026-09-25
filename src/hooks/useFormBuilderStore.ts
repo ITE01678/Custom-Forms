@@ -63,10 +63,28 @@ function reorder<T extends { order: number }>(items: T[], id: string, direction:
   if (idx < 0 || swapWith < 0 || swapWith >= sorted.length) return items;
   const a = sorted[idx];
   const b = sorted[swapWith];
-  const aOrder = a.order;
-  a.order = b.order;
-  b.order = aOrder;
-  return sorted;
+  // New objects, not in-place mutation — the store's other actions all
+  // treat these as immutable (spreading into new objects/arrays on every
+  // change), and mutating shared references here would silently break any
+  // future reference-equality diffing (React.memo, undo/redo, etc.).
+  const next = [...sorted];
+  next[idx] = { ...a, order: b.order };
+  next[swapWith] = { ...b, order: a.order };
+  return next;
+}
+
+/** Resequences `order` to a clean 0..n-1 with no gaps or duplicates,
+ *  preserving current relative order. Without this, removing an item from
+ *  the middle leaves a gap; the next add/duplicate (which picks its new
+ *  order from `array.length`) then collides with an existing item's order.
+ *  `reorder()`'s swap-by-value becomes a silent no-op when the two items
+ *  it's swapping already share the same `order` — a real, easily-triggered
+ *  bug: remove the middle of 3 fields, add a new one (collides with the
+ *  survivor), then click move-up/down on either and nothing happens. */
+function renumber<T extends { order: number }>(items: T[]): T[] {
+  return [...items]
+    .sort((a, b) => a.order - b.order)
+    .map((item, i) => (item.order === i ? item : { ...item, order: i }));
 }
 
 interface FormBuilderState {
@@ -111,14 +129,14 @@ export const useFormBuilderStore = create<FormBuilderState>((set) => ({
   addSection: () =>
     set((s) => {
       if (!s.stored) return s;
-      const sections = [...s.stored.form.sections, newSection(s.stored.form.sections.length)];
+      const sections = renumber([...s.stored.form.sections, newSection(s.stored.form.sections.length)]);
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),
 
   removeSection: (sectionId) =>
     set((s) => {
       if (!s.stored) return s;
-      const sections = s.stored.form.sections.filter((sec) => sec.id !== sectionId);
+      const sections = renumber(s.stored.form.sections.filter((sec) => sec.id !== sectionId));
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),
 
@@ -134,7 +152,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set) => ({
         order: s.stored.form.sections.length,
         fields: original.fields.map((f) => ({ ...f, id: crypto.randomUUID() })),
       };
-      const sections = [...s.stored.form.sections, copy];
+      const sections = renumber([...s.stored.form.sections, copy]);
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),
 
@@ -156,7 +174,9 @@ export const useFormBuilderStore = create<FormBuilderState>((set) => ({
     set((s) => {
       if (!s.stored) return s;
       const sections = s.stored.form.sections.map((sec) =>
-        sec.id === sectionId ? { ...sec, fields: [...sec.fields, newField(type, sec.fields.length)] } : sec
+        sec.id === sectionId
+          ? { ...sec, fields: renumber([...sec.fields, newField(type, sec.fields.length)]) }
+          : sec
       );
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),
@@ -165,7 +185,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set) => ({
     set((s) => {
       if (!s.stored) return s;
       const sections = s.stored.form.sections.map((sec) =>
-        sec.id === sectionId ? { ...sec, fields: sec.fields.filter((f) => f.id !== fieldId) } : sec
+        sec.id === sectionId ? { ...sec, fields: renumber(sec.fields.filter((f) => f.id !== fieldId)) } : sec
       );
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),
@@ -183,7 +203,7 @@ export const useFormBuilderStore = create<FormBuilderState>((set) => ({
           label: `${original.label} (copy)`,
           order: sec.fields.length,
         };
-        return { ...sec, fields: [...sec.fields, copy] };
+        return { ...sec, fields: renumber([...sec.fields, copy]) };
       });
       return { stored: { ...s.stored, form: { ...s.stored.form, sections } }, isDirty: true };
     }),

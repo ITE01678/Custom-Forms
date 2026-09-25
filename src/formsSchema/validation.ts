@@ -16,11 +16,23 @@ export function validateField(field: FormField, value: AnswerValue): string | nu
   const rules = field.validation;
   if (!rules) return null;
 
+  // A multiChoice "Other" checkbox pushes an empty string into the answer
+  // array the moment it's checked (before any text is typed) — an array
+  // like [""] has length 1, so the plain length check below treats it as
+  // "answered" and a required field silently accepts it with nothing
+  // actually filled in. Catch that (and the equivalent all-whitespace
+  // case) without needing to special-case multiChoice specifically: a
+  // fileUpload/repeatingTable answer's array entries are always objects,
+  // never strings, so this can't misfire on those.
+  const isAllBlankStrings =
+    Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === "string" && v.trim() === "");
+
   const isEmpty =
     value === null ||
     value === undefined ||
     value === "" ||
     (Array.isArray(value) && value.length === 0) ||
+    isAllBlankStrings ||
     (isRepeatingTableValue(value) && value.rows.length === 0);
 
   if (rules.required && isEmpty) {

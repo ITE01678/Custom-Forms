@@ -206,10 +206,27 @@ function computeHeaderRow(form: FormDefinition): Row {
   return [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
 }
 
-/** True for a row with no real content — SheetJS's own fallback shape for
- *  reading a corrupted/empty file (`[""]`), or a genuinely blank row. */
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True for a row that isn't a real response — either SheetJS's own
+ *  fallback shape for reading a corrupted/empty file (`[""]`), a
+ *  genuinely blank row, OR a row whose ResponseId column isn't UUID-shaped.
+ *  That last check matters for real: earlier corruption in this tenant's
+ *  history could leave the OLD header row itself sitting in the data
+ *  region (e.g. a self-heal pass that ran against an already-partially-
+ *  corrupted sheet) — its own column-0 value is the literal string
+ *  "ResponseId", not a real id, so it passed the old (length-only) check
+ *  as "real data". `getResponseByRowIndex` would then faithfully show
+ *  whatever's in that phantom row's cells — including, for the row where
+ *  this was actually seen, the literal text "Name" in a field labeled
+ *  "Name" — for anyone whose ResponseIndex happened to point at it.
+ *  response.id is always crypto.randomUUID(), so this is a safe, strong
+ *  signal of "not a real response" that a plain emptiness check can't
+ *  catch. */
 function isDegenerateRow(row: Row | undefined): boolean {
-  return !row || (row.length <= 1 && (row[0] === "" || row[0] === undefined));
+  if (!row) return true;
+  if (row.length <= 1 && (row[0] === "" || row[0] === undefined)) return true;
+  return typeof row[0] !== "string" || !UUID_SHAPE.test(row[0]);
 }
 
 /** Defensive self-heal: if the sheet's first row isn't our real header
@@ -674,7 +691,17 @@ export async function getResponseByRowIndex(form: FormDefinition, rowIndex: numb
     throw err;
   }
   const raw = rows[rowIndex + 1] as Row | undefined;
-  if (!raw) return null;
+  // A row whose ResponseId isn't UUID-shaped isn't a real response — most
+  // likely legacy corruption from this tenant's earlier Excel-write issues
+  // (confirmed seen: a stray copy of the header row itself sitting in the
+  // data region, whose own "ResponseId" cell literally reads "ResponseId"
+  // and whose other cells literally read their own column labels — e.g. a
+  // field labeled "Name" showing "Name" as its value, not a real name).
+  // Deliberately NOT removing/rewriting the row here (that would shift
+  // every later row's position, silently breaking OTHER users' cached
+  // ResponseIndex row numbers for a concurrent session) — just refusing to
+  // present it as if it were a real response.
+  if (!raw || typeof raw[0] !== "string" || !UUID_SHAPE.test(raw[0])) return null;
 
   const { fieldOrder } = reconcileColumns(rows[0] as Row, form);
   const answers: Record<string, AnswerValue> = {};
@@ -714,7 +741,15 @@ export async function getResponseRows(form: FormDefinition): Promise<{ columns: 
 
   const rows = await readWorkbookRows(driveId, workbookPath(form.id));
   const { header } = reconcileColumns(rows[0] as Row, form);
-  return { columns: header.map(String), rows: rows.slice(1).map((values) => ({ values })) };
+  // Same reasoning as getResponseByRowIndex's guard — a row without a
+  // UUID-shaped ResponseId isn't a real response (legacy corruption, e.g.
+  // a stray copy of the header row itself). Filtered for display only;
+  // nothing here rewrites the sheet or shifts any other row's position.
+  const dataRows = rows
+    .slice(1)
+    .filter((r) => typeof r[0] === "string" && UUID_SHAPE.test(r[0]))
+    .map((values) => ({ values }));
+  return { columns: header.map(String), rows: dataRows };
 }
 
 /** Fallback columns for a form with no workbook yet (nothing to reconcile

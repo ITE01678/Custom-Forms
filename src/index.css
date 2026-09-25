@@ -1566,6 +1566,12 @@ textarea {
   width: 100%;
 }
 
+.fill-field__choice-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .choice-pill {
   display: flex;
   align-items: center;

@@ -56,7 +56,7 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
 
   return (
     <div className="fill-field">
-      <label className="fill-field__label" style={textStyleToCss(field.labelStyle)}>
+      <label className="fill-field__label" htmlFor={field.id} style={textStyleToCss(field.labelStyle)}>
         {field.label}
         {field.validation?.required && <span className="fill-field__required-mark">*</span>}
         <span className="autofill-badge">
@@ -76,7 +76,7 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
       {(status === "resolved" || status === "empty") && options.length > 0 && (
         <>
           {!isMulti && field.choiceDisplay === "dropdown" ? (
-            <select value={selected as string} onChange={(e) => onChange(e.target.value)}>
+            <select id={field.id} className="fill-field__input" value={selected as string} onChange={(e) => onChange(e.target.value)}>
               <option value="" disabled>
                 Choose…
               </option>

@@ -45,9 +45,15 @@ export function evaluatePredicate(predicate: Predicate, actual: unknown): boolea
     case "isNotEmpty":
       return !isEmptyValue(actual);
     case "eq":
-      return actual === value;
+      // multiChoice's answer is always a string[] (one predicate `value`
+      // picked from a single <select> in the builder), so a plain === was
+      // comparing an array to a string — always false, making "is exactly"
+      // dead code for every multiChoice branch/visibility rule regardless
+      // of what the respondent actually picked. Array-aware: true when the
+      // picked value is among the selected options.
+      return Array.isArray(actual) ? actual.includes(value as string) : actual === value;
     case "neq":
-      return actual !== value;
+      return Array.isArray(actual) ? !actual.includes(value as string) : actual !== value;
     case "gt":
       return typeof actual === "number" && typeof value === "number" && actual > value;
     case "gte":

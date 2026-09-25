@@ -112,9 +112,17 @@ export function FillPage() {
         // their knowledge (or, once already approved, alter something that
         // was signed off on). This is independent of editPolicy/the edit
         // window; a response either has routing or it doesn't.
-        const routingEntry = latest.routing && latest.routing.mode !== "none"
-          ? await getRoutingState(latest.id, existing.response.id)
-          : null;
+        //
+        // Deliberately NOT gated on `latest.routing.mode !== "none"` —
+        // routing state lives in its own List, independent of the form's
+        // CURRENT config. Short-circuiting on the current config reopened
+        // exactly the bypass this check exists to close: admin edits the
+        // form to remove/disable routing and republishes (latest.routing
+        // is now "none") while an older response is still mid-approval or
+        // already decided under the version it was actually submitted
+        // against — the check was skipped entirely and self-edit reopened
+        // on a response someone else already acted on. Always ask.
+        const routingEntry = await getRoutingState(latest.id, existing.response.id);
         if (cancelled) return;
 
         const editable = selfCanEdit && !routingEntry && isWithinEditWindow(existing.response, latest);

@@ -295,7 +295,22 @@ function reconcileColumns(existingHeader: Row | undefined, form: FormDefinition)
     return { header: computeHeaderRow(form), fieldOrder: currentFields };
   }
 
-  const currentByLabel = new Map(currentFields.map((f) => [f.label || f.id, f]));
+  // Two CURRENT fields sharing a label (builder doesn't prevent this) would
+  // otherwise silently collapse to whichever one Map construction keeps
+  // last, making an EXISTING column reassign to the wrong field — the
+  // discarded field then falls into newFields and gets a fresh, empty
+  // column, while its real historical answers now show up under the
+  // other, unrelated field. Exclude ambiguous labels from matching
+  // entirely instead: both fields land in newFields and each gets its own
+  // new trailing column — an extra column, never wrong data.
+  const labelCounts = new Map<string, number>();
+  for (const f of currentFields) {
+    const label = f.label || f.id;
+    labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+  }
+  const currentByLabel = new Map(
+    currentFields.filter((f) => labelCounts.get(f.label || f.id) === 1).map((f) => [f.label || f.id, f])
+  );
   const claimed = new Set<string>();
   const fieldOrder: (FormField | null)[] = existingFieldLabels.map((label) => {
     const match = currentByLabel.get(label);

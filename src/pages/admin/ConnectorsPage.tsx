@@ -40,6 +40,27 @@ const CONNECTOR_TYPES: { value: ConnectorType; label: string; exampleConfig: str
   },
 ];
 
+/** Keys known to carry a bearer-equivalent secret in a connector config —
+ *  power-automate-proxy's flowUrl embeds its own signature/key (see that
+ *  connector's own doc comment: "treat this like a secret"), and the app
+ *  has no role concept — any signed-in org member could otherwise read it
+ *  verbatim here and call the flow directly with forged inputs, bypassing
+ *  this app entirely. Masked for display only; the real value is still
+ *  used correctly wherever the connector itself resolves data. */
+const SECRET_CONFIG_KEYS = new Set(["flowUrl"]);
+
+function redactConfigForDisplay(configJson: string): string {
+  try {
+    const parsed = JSON.parse(configJson) as Record<string, unknown>;
+    for (const key of Object.keys(parsed)) {
+      if (SECRET_CONFIG_KEYS.has(key)) parsed[key] = "••••••••  (hidden)";
+    }
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return configJson; // not valid JSON — show as-is rather than hide a config error
+  }
+}
+
 export function ConnectorsPage() {
   const { email } = useAuth();
   const [configs, setConfigs] = useState<ListItem<ConnectorConfigFields>[]>([]);
@@ -165,7 +186,7 @@ export function ConnectorsPage() {
                     <td>{c.fields.Name}</td>
                     <td>{c.fields.ConnectorType}</td>
                     <td>
-                      <code>{c.fields.ConfigJson}</code>
+                      <code>{redactConfigForDisplay(c.fields.ConfigJson)}</code>
                     </td>
                     <td>
                       <button onClick={() => handleDelete(c.id)}>Delete</button>

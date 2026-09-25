@@ -135,8 +135,16 @@ export async function submitResponse(
   // The Excel write is done. Everything below is best-effort bookkeeping —
   // failures here must never loop back to appendResponseRow (see comment
   // above), so they're caught and logged, not retried as a unit.
+  //
+  // markDone runs LAST, deliberately: every recovery path (getUnresolved*,
+  // the admin Sync Health page) filters on Status ne 'done', so if this ran
+  // first and upsertIndex/addAuditEntry then failed, the item would be
+  // permanently marked done with no way for anything to ever retry the
+  // bookkeeping that didn't actually finish — losing the ResponseIndex
+  // entry for good (next visit falls to "create" mode instead of "edit",
+  // and a resubmission then duplicates the row, since appendResponseRow has
+  // no idempotency check) or the audit trail entry, unrecoverably.
   try {
-    await markDone(queueItemId);
     await upsertIndex({ formId: form.id, responseId: response.id, submitterEmail: respondentUpn, rowIndex });
     await addAuditEntry({
       formId: form.id,
@@ -145,6 +153,7 @@ export async function submitResponse(
       action: "submit",
       changedFields: Object.entries(answers).map(([fieldId, newValue]) => ({ fieldId, oldValue: null, newValue })),
     });
+    await markDone(queueItemId);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[submitResponse] post-write bookkeeping failed (response IS saved in Excel)", err);
@@ -249,8 +258,8 @@ export async function updateResponse(params: {
 
   if (rowIndex === null) return updated;
 
+  // markDone last — see the matching comment in submitResponse above.
   try {
-    await markDone(queueItemId);
     await upsertIndex({ formId: form.id, responseId: updated.id, submitterEmail: updated.respondentUpn, rowIndex });
     await addAuditEntry({
       formId: form.id,
@@ -260,6 +269,7 @@ export async function updateResponse(params: {
       changedFields,
       reason: params.reason,
     });
+    await markDone(queueItemId);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[updateResponse] post-write bookkeeping failed (edit IS saved in Excel)", err);
@@ -291,6 +301,20 @@ export async function actOnRouting(params: {
   const { form, response, actorEmail, action, reason } = params;
   const entry = await getRoutingState(form.id, response.id);
   if (!entry) throw new Error("This response has no approval routing in progress.");
+
+  // ApprovePage's own recipient check is a UI-level gate only — this app has
+  // no backend, so nothing stopped a signed-in org member from calling this
+  // function directly (or writing to the ResponseRouting List item with
+  // their own already-valid delegated token) to approve/reject someone
+  // else's pending request, and even forge the actedBy value the history
+  // would then display. Re-verify here, at the point the state-changing
+  // write actually happens, so the UI check isn't the only thing standing
+  // between "signed in" and "can decide any approval in the tenant."
+  const currentStep = getCurrentStep(form, entry.state);
+  const validRecipients = currentStep ? resolveStepRecipients(currentStep, response.answers) : [];
+  if (!validRecipients.includes(actorEmail.trim().toLowerCase())) {
+    throw new Error("You are not an authorized approver for this step.");
+  }
 
   const nextState = advanceRoutingState(form, entry.state, actorEmail, action, reason);
   await saveRoutingState(entry.itemId, nextState);

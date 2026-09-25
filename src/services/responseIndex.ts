@@ -46,10 +46,24 @@ export async function upsertIndex(params: {
   submitterEmail: string;
   rowIndex: number;
 }): Promise<void> {
-  const existing = await getIndexByResponseId(params.formId, params.responseId);
+  // Deduped by (formId, submitterEmail) — matching getIndexBySubmitter's own
+  // key, not (formId, responseId) — deliberately. Deduping by responseId
+  // meant a submitter who already had an index entry (e.g. one pointing at
+  // a corrupted row that getResponseByRowIndex now refuses to return, or
+  // simply their prior response's entry when this call is for a brand-new
+  // one) got a SECOND List item created here instead of the first being
+  // replaced, since a fresh responseId never matches an existing entry
+  // keyed by the OLD responseId. getIndexBySubmitter's unordered `top: 1`
+  // query then has two candidates and no guarantee which one it returns —
+  // it could keep resolving to the stale entry indefinitely, and nothing
+  // ever cleans up the orphan. Updating in place here guarantees exactly
+  // one index row per submitter, always.
+  const existing = await getIndexBySubmitter(params.formId, params.submitterEmail);
   const now = new Date().toISOString();
   if (existing) {
     await updateListItem<ResponseIndexFields>(LIST_NAMES.responseIndex, existing.id, {
+      Title: params.responseId,
+      ResponseId: params.responseId,
       RowIndex: params.rowIndex,
       VerifiedAt: now,
     });

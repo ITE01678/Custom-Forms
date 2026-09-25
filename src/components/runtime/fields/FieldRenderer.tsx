@@ -167,9 +167,10 @@ function renderInput(
 
       if (field.choiceDisplay === "dropdown") {
         return (
-          <div>
+          <div className="fill-field__choice-dropdown">
             <select
               id={field.id}
+              className="fill-field__input"
               value={isOtherSelected ? "__other__" : typeof value === "string" ? value : ""}
               onChange={(e) => onChange(e.target.value === "__other__" ? "" : e.target.value)}
             >
@@ -185,7 +186,7 @@ function renderInput(
             </select>
             {field.allowOther && isOtherSelected && (
               <input
-                className="choice-pill__other-input"
+                className="fill-field__input"
                 placeholder="Other"
                 value={String(value ?? "")}
                 onChange={(e) => onChange(e.target.value)}

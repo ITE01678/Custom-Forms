@@ -3,18 +3,6 @@ import { msalConfig } from "./msalConfig";
 
 export const msalInstance = new PublicClientApplication(msalConfig);
 
-// Temporary diagnostic logging — every MSAL lifecycle event, timestamped, so
-// a real repro can be read back as an exact sequence instead of guessed at.
-// Remove once the redirect-loop issue is confirmed fixed.
-msalInstance.addEventCallback((message) => {
-  // eventType is already a readable string, e.g. "msal:loginSuccess".
-  // eslint-disable-next-line no-console
-  console.info(`[auth-debug] event ${message.eventType}`, {
-    error: message.error ?? null,
-    accountUsername: (message.payload as { account?: { username?: string } })?.account?.username ?? null,
-  });
-});
-
 let redirectError: Error | null = null;
 
 /** Any error thrown while processing the redirect-back response (e.g. an
@@ -47,42 +35,27 @@ function stripAuthResponseFromQuery(): void {
   window.history.replaceState(null, "", cleanUrl);
 }
 
-// eslint-disable-next-line no-console
-console.info("[auth-debug] boot", {
-  url: window.location.href,
-  hasCodeInQuery: window.location.search.includes("code="),
-  hasCodeInHash: window.location.hash.includes("code="),
-});
-
 // MSAL v3 requires explicit initialization before use.
 export const msalInitPromise = msalInstance.initialize().then(async () => {
   // Pick up the account from any redirect-based login that just completed.
   const accounts = msalInstance.getAllAccounts();
-  // eslint-disable-next-line no-console
-  console.info("[auth-debug] initialized", { existingAccountCount: accounts.length });
   if (accounts.length > 0) {
     msalInstance.setActiveAccount(accounts[0]);
   }
   try {
     const result = await msalInstance.handleRedirectPromise();
-    // eslint-disable-next-line no-console
-    console.info("[auth-debug] handleRedirectPromise resolved", {
-      hadResult: !!result,
-      account: result?.account?.username ?? null,
-    });
     if (result?.account) {
       msalInstance.setActiveAccount(result.account);
     }
   } catch (err) {
     redirectError = err instanceof Error ? err : new Error(String(err));
+    // Genuinely unexpected (auth code already consumed, state mismatch,
+    // etc.) — also surfaced to the user via getRedirectError()/AuthGate,
+    // but worth a console trace too since it's rare enough to want to see
+    // exactly what MSAL reported.
     // eslint-disable-next-line no-console
-    console.info("[auth-debug] handleRedirectPromise threw", redirectError);
+    console.error("[auth] handleRedirectPromise failed", redirectError);
   } finally {
     stripAuthResponseFromQuery();
-    // eslint-disable-next-line no-console
-    console.info("[auth-debug] init complete", {
-      activeAccount: msalInstance.getActiveAccount()?.username ?? null,
-      allAccounts: msalInstance.getAllAccounts().map((a) => a.username),
-    });
   }
 });

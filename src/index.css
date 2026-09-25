@@ -79,6 +79,16 @@ a {
   max-width: 1040px;
 }
 
+/* .builder-sheet already provides its own card padding — without this, the
+ * page's own 2rem/4rem padding stacks on top of it, leaving ~4rem of empty
+ * space above the header and a narrower-than-intended card. Scoped to only
+ * the page that directly wraps a builder-sheet (BuilderPage), so every
+ * other .page--wide use (admin tables, etc.) is unaffected. */
+.page:has(> .builder-sheet) {
+  padding-top: 1.25rem;
+  padding-bottom: 2rem;
+}
+
 .page--centered {
   text-align: center;
   padding-top: 4rem;
@@ -2013,6 +2023,11 @@ textarea {
   .page--wide {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .page:has(> .builder-sheet) {
+    padding-top: 0.75rem;
+    padding-bottom: 1.25rem;
   }
 
   .builder-sheet {

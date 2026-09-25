@@ -214,6 +214,25 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
             >
               + Add option
             </button>
+            {(() => {
+              const labels = (field.options ?? []).map((o) => o.label.trim());
+              const hasDuplicates = new Set(labels).size !== labels.length;
+              // Response exports show each option's LABEL, not its internal
+              // value (see excel.ts's resolveOptionLabel/resolveOptionValue)
+              // — two options sharing a label make that resolution
+              // ambiguous (editing a response always re-resolves to
+              // whichever option comes first), and for multiChoice, a
+              // label containing the literal ", " join delimiter corrupts
+              // the round-trip by splitting one label into several.
+              const hasUnsafeComma = field.type === "multiChoice" && labels.some((l) => l.includes(", "));
+              if (!hasDuplicates && !hasUnsafeComma) return null;
+              return (
+                <p className="error-text">
+                  {hasDuplicates && "Two or more options have the same text — editing a response may show the wrong one selected. "}
+                  {hasUnsafeComma && 'An option contains ", " — this can corrupt multi-select responses.'}
+                </p>
+              );
+            })()}
           </div>
 
           <div className="field-editor__toggles">
@@ -269,6 +288,19 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
           </label>
         </div>
       )}
+      {isText &&
+        field.validation?.minLength !== undefined &&
+        field.validation?.maxLength !== undefined &&
+        field.validation.minLength > field.validation.maxLength && (
+          <p className="error-text" style={{ marginLeft: "6rem" }}>
+            Min length is greater than max length — this field can never be answered.
+          </p>
+        )}
+      {isText && field.validation?.required && field.validation?.maxLength === 0 && (
+        <p className="error-text" style={{ marginLeft: "6rem" }}>
+          Max length is 0 on a required field — this field can never be answered.
+        </p>
+      )}
 
       {isNumber && (
         <div className="field-editor__validation-row">
@@ -290,6 +322,14 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
           </label>
         </div>
       )}
+      {isNumber &&
+        field.validation?.min !== undefined &&
+        field.validation?.max !== undefined &&
+        field.validation.min > field.validation.max && (
+          <p className="error-text" style={{ marginLeft: "6rem" }}>
+            Min is greater than max — this field can never be answered.
+          </p>
+        )}
 
       {isFileUpload && (
         <div className="field-editor__validation-row">

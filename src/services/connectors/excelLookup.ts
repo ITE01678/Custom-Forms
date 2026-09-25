@@ -56,9 +56,16 @@ export const excelLookupConnector: DataSourceConnector<ExcelLookupConfig> = {
       throw new Error(`Column "${config.keyColumn}" not found in sheet "${sheetName}".`);
     }
 
+    // Trimmed + case-insensitive: an exact, case-sensitive match against a
+    // hand-maintained roster sheet is a real footgun — a trailing space or
+    // a case difference between how a department name is typed here vs. in
+    // the respondent's Graph profile silently returns zero rows, which is
+    // indistinguishable from "no matching records" to whoever's filling
+    // out the form.
+    const normalizedKey = params.keyValue.trim().toLowerCase();
     return rows
       .slice(1)
-      .filter((r) => String(r[keyIndex] ?? "") === params.keyValue)
+      .filter((r) => String(r[keyIndex] ?? "").trim().toLowerCase() === normalizedKey)
       .map((r) => Object.fromEntries(headers.map((h, i) => [h, r[i]])));
   },
 };

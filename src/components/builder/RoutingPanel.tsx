@@ -187,6 +187,12 @@ export function RoutingPanel({ form }: Props) {
                       })
                     }
                   />
+                  {(step.recipients ?? []).length === 0 && (
+                    <p className="error-text">
+                      No recipients — every response submitted through this stage would sit
+                      awaiting approval forever, with nobody able to open it.
+                    </p>
+                  )}
                 </div>
               )}
 

@@ -27,16 +27,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Temporary diagnostic logging — remove once the redirect-loop issue is
-    // confirmed fixed. Logs every time this guard re-evaluates, so a repro
-    // can be read back as an exact sequence of state transitions.
-    // eslint-disable-next-line no-console
-    console.info("[auth-debug] AuthGate effect", {
-      isAuthenticated,
-      attemptedFlag: sessionStorage.getItem(ATTEMPTED_KEY),
-      redirectError: getRedirectError()?.message ?? null,
-    });
-
     if (isAuthenticated) {
       sessionStorage.removeItem(ATTEMPTED_KEY);
       // Returning from an interactive login that stashed a deep link (e.g. a
@@ -61,8 +51,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
     // directly as a fallback and skip re-triggering login if it already has
     // an account — the next render will have isAuthenticated: true.
     if (msalInstance.getActiveAccount()) {
-      // eslint-disable-next-line no-console
-      console.info("[auth-debug] AuthGate: hook says unauthenticated but instance has an active account — skipping login()");
       return;
     }
 

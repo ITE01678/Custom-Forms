@@ -77,6 +77,11 @@ export function FormSettingsPanel({ form }: Props) {
         </div>
       </div>
       <p className="fill-field__help">Leave either blank for no limit.</p>
+      {form.settings.opensAt &&
+        form.settings.closesAt &&
+        new Date(form.settings.opensAt).getTime() > new Date(form.settings.closesAt).getTime() && (
+          <p className="error-text">"Closes" is before "Opens" — this form would never accept responses.</p>
+        )}
 
       <h3>Presentation</h3>
       <div className="field-row">

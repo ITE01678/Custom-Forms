@@ -85,10 +85,20 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, valu
       </span>
       {allowOverride && (
         <span className="fill-source-toggle">
-          <button type="button" className={mode === "auto" ? "is-active" : ""} onClick={switchToAuto}>
+          <button
+            type="button"
+            className={mode === "auto" ? "is-active" : ""}
+            aria-label={`Auto-fill ${field.label}`}
+            onClick={switchToAuto}
+          >
             Auto
           </button>
-          <button type="button" className={mode === "manual" ? "is-active" : ""} onClick={switchToManual}>
+          <button
+            type="button"
+            className={mode === "manual" ? "is-active" : ""}
+            aria-label={`Enter ${field.label} manually`}
+            onClick={switchToManual}
+          >
             Manual
           </button>
         </span>
@@ -280,7 +290,9 @@ function ManualGrid({
                   </td>
                 ))}
                 <td>
-                  <button onClick={() => onChange(rows.filter((_, j) => j !== i))}>✕</button>
+                  <button aria-label={`Remove row ${i + 1}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
+                    ✕
+                  </button>
                 </td>
               </tr>
             ))}

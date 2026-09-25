@@ -114,10 +114,20 @@ export function AutofillField({ field, respondentEmail, priorAnswers, value, onC
         </span>
         {allowOverride && (
           <span className="fill-source-toggle">
-            <button type="button" className={mode === "auto" ? "is-active" : ""} onClick={switchToAuto}>
+            <button
+              type="button"
+              className={mode === "auto" ? "is-active" : ""}
+              aria-label={`Auto-fill ${field.label}`}
+              onClick={switchToAuto}
+            >
               Auto
             </button>
-            <button type="button" className={mode === "manual" ? "is-active" : ""} onClick={switchToManual}>
+            <button
+              type="button"
+              className={mode === "manual" ? "is-active" : ""}
+              aria-label={`Enter ${field.label} manually`}
+              onClick={switchToManual}
+            >
               Manual
             </button>
           </span>

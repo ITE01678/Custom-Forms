@@ -187,14 +187,6 @@ async function getTemplateBytes(): Promise<ArrayBuffer> {
     );
   }
   templateBytesCache = await res.arrayBuffer();
-  // Temporary diagnostic logging — remove once the "blank workbook" issue is
-  // confirmed fixed.
-  // eslint-disable-next-line no-console
-  console.info("[excel-debug] getTemplateBytes", {
-    status: res.status,
-    contentType: res.headers.get("Content-Type"),
-    byteLength: templateBytesCache.byteLength,
-  });
   return templateBytesCache;
 }
 
@@ -362,20 +354,6 @@ async function readWorkbookRows(driveId: string, itemPath: string): Promise<Row[
   const workbook = XLSX.read(new Uint8Array(bytes), { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Row>(sheet, { header: 1, defval: "" });
-  // Temporary diagnostic logging — remove once the "blank workbook" issue is
-  // confirmed fixed. Pinpoints exactly what a read actually saw: how many
-  // bytes came back, what sheet(s) SheetJS found in them, and how many rows
-  // it parsed out — so a report of "no data" can be traced to a specific
-  // step instead of guessed at.
-  // eslint-disable-next-line no-console
-  console.info("[excel-debug] readWorkbookRows", {
-    itemPath,
-    byteLength: bytes.byteLength,
-    sheetNames: workbook.SheetNames,
-    sheetRef: sheet?.["!ref"] ?? "(none)",
-    rowCount: rows.length,
-    firstRow: rows[0],
-  });
   return rows;
 }
 
@@ -420,17 +398,6 @@ async function writeWorkbookRows(
   const rawOut = XLSX.write(workbook, { type: "array", bookType: "xlsx" }) as Uint8Array | ArrayBuffer;
   const out = rawOut instanceof ArrayBuffer ? new Uint8Array(rawOut) : rawOut;
 
-  // Temporary diagnostic logging — remove once the "blank workbook" issue is
-  // confirmed fixed. See readWorkbookRows's matching log for why.
-  // eslint-disable-next-line no-console
-  console.info("[excel-debug] writeWorkbookRows", {
-    itemPath,
-    inputRowCount: rows.length,
-    sheetRef: sheet["!ref"] ?? "(none)",
-    outputByteLength: out.byteLength,
-    ifMatchEtag: ifMatchEtag ?? "(none)",
-  });
-
   // A plain `PUT .../content` was confirmed (via Graph's own post-write
   // item metadata) to silently corrupt this tenant's .xlsx uploads to size
   // 0 despite a 200 response and a new version — same class of Excel/WAC
@@ -441,31 +408,6 @@ async function writeWorkbookRows(
     scopes: graphScopes.sites,
     ifMatchEtag: ifMatchEtag ? toIfMatchValue(ifMatchEtag) : undefined,
   });
-
-  // Temporary diagnostic logging — remove once the "blank workbook" issue is
-  // confirmed fixed. Asks Graph directly what size/eTag it now has on record
-  // for this item, independent of any content read — narrows whether a
-  // "content comes back blank" symptom is a write that never truly
-  // committed real bytes (this would show a wrong/tiny size here too) vs.
-  // one where Graph's own metadata is correct but serving `/content` back
-  // is what's broken (size here would match outputByteLength).
-  try {
-    const item = await graphFetch<{ size: number; eTag: string; lastModifiedDateTime: string }>(
-      `/drives/${driveId}/root:/${itemPath}?$select=size,eTag,lastModifiedDateTime`,
-      { scopes: graphScopes.sites }
-    );
-    // eslint-disable-next-line no-console
-    console.info("[excel-debug] post-write item metadata", {
-      itemPath,
-      expectedByteLength: out.byteLength,
-      graphReportedSize: item.size,
-      eTag: item.eTag,
-      lastModifiedDateTime: item.lastModifiedDateTime,
-    });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.info("[excel-debug] post-write item metadata fetch failed", err);
-  }
 }
 
 /**
@@ -485,16 +427,6 @@ async function withOptimisticUpdate<T>(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const [etag, rows] = await Promise.all([getItemETag(driveId, itemPath), readWorkbookRows(driveId, itemPath)]);
     const { rows: nextRows, result } = mutate(rows);
-    // Temporary diagnostic logging — remove once the "blank workbook" issue
-    // is confirmed fixed.
-    // eslint-disable-next-line no-console
-    console.info("[excel-debug] withOptimisticUpdate attempt", {
-      itemPath,
-      attempt,
-      etag,
-      rowsBeforeMutate: rows.length,
-      rowsAfterMutate: nextRows.length,
-    });
     try {
       await writeWorkbookRows(driveId, itemPath, nextRows, etag);
 
@@ -520,15 +452,12 @@ async function withOptimisticUpdate<T>(
     } catch (err) {
       const isConflict = err instanceof GraphError && err.status === 412;
       const isVerificationMiss = err instanceof WriteVerificationError;
-      // Temporary diagnostic logging — remove once the "blank workbook"
-      // issue is confirmed fixed. writeWorkbookRows/graphUploadBinaryViaSession
-      // can throw for reasons that were previously invisible (no log fired
-      // between "writeWorkbookRows" and the next "readWorkbookRows" line) —
-      // log every caught error explicitly, GraphError or not, so a real
-      // failure (CORS, a rejected upload session, a network error) is never
-      // silently indistinguishable from "didn't get this far yet".
+      // Deliberately permanent, not temporary debug logging — this file's
+      // whole write path has a real history of failures that were
+      // otherwise completely silent (see git history), and this is the one
+      // place that sees every one of them, retried or not.
       // eslint-disable-next-line no-console
-      console.info("[excel-debug] withOptimisticUpdate caught error", {
+      console.error("[excel] withOptimisticUpdate write failed", {
         itemPath,
         attempt,
         errName: err instanceof Error ? err.name : typeof err,
@@ -563,23 +492,12 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
   const templateRows = XLSX.utils.sheet_to_json<Row>(templateSheet, { header: 1, defval: "" });
 
   // Column header is the human-readable label for anyone opening the sheet
-  // directly — cosmetic only. Row writes are always positional (full row
-  // array in flattenFields order), so a label collision doesn't corrupt
-  // data, but duplicate labels across fields in one form should still be
-  // avoided in the builder (not yet enforced — noted as a known gap).
+  // directly, and also what reconcileColumns matches on across later
+  // republishes — the builder warns (FieldEditor's options list) but
+  // doesn't hard-block two fields sharing a label, so this isn't
+  // impossible, just discouraged.
   const headerRow = computeHeaderRow(form);
   const rows: Row[] = [headerRow, ...templateRows.slice(1)];
-
-  // Temporary diagnostic logging — remove once the "blank workbook" issue is
-  // confirmed fixed.
-  // eslint-disable-next-line no-console
-  console.info("[excel-debug] ensureWorkbookForForm", {
-    formId: form.id,
-    templateSheetNames: templateWorkbook.SheetNames,
-    templateRowCount: templateRows.length,
-    headerRow,
-    finalRowCount: rows.length,
-  });
 
   await writeWorkbookRows(driveId, workbookPath(form.id), rows);
 }

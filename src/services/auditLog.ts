@@ -1,4 +1,4 @@
-import { createListItem, queryListItems } from "./lists";
+import { createListItem, odataQuote, queryListItems } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 import type { AuditEntry } from "../formsSchema/types";
 
@@ -35,7 +35,7 @@ export async function addAuditEntry(params: {
 
 export async function getEntriesForResponse(formId: string, responseId: string): Promise<AuditEntry[]> {
   const items = await queryListItems<AuditLogFields>(LIST_NAMES.auditLog, {
-    filter: `fields/FormId eq '${formId}' and fields/ResponseId eq '${responseId}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/ResponseId eq '${odataQuote(responseId)}'`,
   });
   return items
     .map((item) => ({

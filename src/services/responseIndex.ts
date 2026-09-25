@@ -1,4 +1,4 @@
-import { createListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, odataQuote, queryListItems, updateListItem, type ListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 
 /**
@@ -21,7 +21,7 @@ export async function getIndexByResponseId(
   responseId: string
 ): Promise<ListItem<ResponseIndexFields> | null> {
   const items = await queryListItems<ResponseIndexFields>(LIST_NAMES.responseIndex, {
-    filter: `fields/FormId eq '${formId}' and fields/ResponseId eq '${responseId}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/ResponseId eq '${odataQuote(responseId)}'`,
     top: 1,
   });
   return items[0] ?? null;
@@ -34,7 +34,7 @@ export async function getIndexBySubmitter(
   submitterEmail: string
 ): Promise<ListItem<ResponseIndexFields> | null> {
   const items = await queryListItems<ResponseIndexFields>(LIST_NAMES.responseIndex, {
-    filter: `fields/FormId eq '${formId}' and fields/SubmitterEmail eq '${submitterEmail}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/SubmitterEmail eq '${odataQuote(submitterEmail)}'`,
     top: 1,
   });
   return items[0] ?? null;

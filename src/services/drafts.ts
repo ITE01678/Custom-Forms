@@ -1,4 +1,4 @@
-import { createListItem, deleteListItem, queryListItems, updateListItem } from "./lists";
+import { createListItem, deleteListItem, odataQuote, queryListItems, updateListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 import type { AnswerValue } from "../formsSchema/types";
 
@@ -29,7 +29,7 @@ export interface SavedDraft {
 
 export async function getDraft(formId: string, email: string): Promise<SavedDraft | null> {
   const items = await queryListItems<DraftFields>(LIST_NAMES.drafts, {
-    filter: `fields/FormId eq '${formId}' and fields/SubmitterEmail eq '${email}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/SubmitterEmail eq '${odataQuote(email)}'`,
     top: 1,
   });
   const item = items[0];

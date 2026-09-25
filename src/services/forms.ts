@@ -1,4 +1,4 @@
-import { createListItem, deleteListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, deleteListItem, odataQuote, queryListItems, updateListItem, type ListItem } from "./lists";
 import { ensureFormsSiteStructure, LIBRARY_NAMES, LIST_NAMES } from "./bootstrap";
 import { deleteResponseWorkbookIfExists, ensureWorkbookForForm, getResponseRows } from "./excel";
 import { deleteAllForForm, getUnresolvedForForm } from "./syncQueue";
@@ -35,7 +35,7 @@ function toStoredForm(item: ListItem<FormsListFields>): StoredForm {
 export async function listMyForms(ownerEmail: string): Promise<StoredForm[]> {
   await ensureFormsSiteStructure();
   const items = await queryListItems<FormsListFields>(LIST_NAMES.forms, {
-    filter: `fields/OwnerEmail eq '${ownerEmail}'`,
+    filter: `fields/OwnerEmail eq '${odataQuote(ownerEmail)}'`,
   });
   return items.map(toStoredForm);
 }
@@ -43,7 +43,7 @@ export async function listMyForms(ownerEmail: string): Promise<StoredForm[]> {
 export async function getFormById(formId: string): Promise<StoredForm | null> {
   await ensureFormsSiteStructure();
   const items = await queryListItems<FormsListFields>(LIST_NAMES.forms, {
-    filter: `fields/FormId eq '${formId}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}'`,
     top: 1,
   });
   return items[0] ? toStoredForm(items[0]) : null;
@@ -52,7 +52,7 @@ export async function getFormById(formId: string): Promise<StoredForm | null> {
 export async function getFormBySlug(slug: string): Promise<FormDefinition | null> {
   await ensureFormsSiteStructure();
   const items = await queryListItems<FormsListFields>(LIST_NAMES.forms, {
-    filter: `fields/Slug eq '${slug}'`,
+    filter: `fields/Slug eq '${odataQuote(slug)}'`,
     top: 1,
   });
   return items[0] ? toStoredForm(items[0]).form : null;

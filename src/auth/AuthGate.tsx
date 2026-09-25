@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./useAuth";
 import { getRedirectError, msalInstance } from "./msalInstance";
-import { consumeStashedPath } from "./postLoginRedirect";
+import { consumeStashedPath, stashCurrentPath } from "./postLoginRedirect";
 
 const ATTEMPTED_KEY = "customForms.authRedirectAttempted";
 
@@ -79,6 +79,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
+    // stashCurrentPath()'s own doc comment explains why this is needed —
+    // without it, a deep link opened signed-out (a builder/admin link, not
+    // just the /f/:slug share-link routes that already had this) silently
+    // drops the user at the dashboard after they sign back in, since MSAL's
+    // redirect round trip doesn't preserve the HashRouter route on its own.
+    stashCurrentPath();
     sessionStorage.setItem(ATTEMPTED_KEY, "1");
     login();
   }, [isAuthenticated, login, navigate]);

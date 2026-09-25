@@ -1,4 +1,4 @@
-import { queryListItems } from "../lists";
+import { odataQuote, queryListItems } from "../lists";
 import type { DataSourceConnector } from "./registry";
 
 export interface SharePointListQueryConfig {
@@ -17,7 +17,7 @@ export const sharepointListQueryConnector: DataSourceConnector<SharePointListQue
   async resolve(config, params) {
     if (!params.keyValue) return [];
     const items = await queryListItems<Record<string, unknown>>(config.listName, {
-      filter: `fields/${config.filterColumn} eq '${params.keyValue}'`,
+      filter: `fields/${config.filterColumn} eq '${odataQuote(params.keyValue)}'`,
     });
     return items.map((item) => item.fields);
   },

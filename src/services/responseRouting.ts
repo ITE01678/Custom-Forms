@@ -1,4 +1,4 @@
-import { createListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, odataQuote, queryListItems, updateListItem, type ListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 import type { FormDefinition, ResponseRoutingState, RoutingHistoryEntry, RoutingStep } from "../formsSchema/types";
 
@@ -31,7 +31,7 @@ export async function getRoutingState(
   responseId: string
 ): Promise<{ itemId: string; state: ResponseRoutingState } | null> {
   const items = await queryListItems<ResponseRoutingFields>(LIST_NAMES.responseRouting, {
-    filter: `fields/FormId eq '${formId}' and fields/ResponseId eq '${responseId}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/ResponseId eq '${odataQuote(responseId)}'`,
     top: 1,
   });
   const item = items[0];

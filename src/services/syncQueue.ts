@@ -1,4 +1,4 @@
-import { createListItem, deleteListItem, queryListItems, updateListItem, type ListItem } from "./lists";
+import { createListItem, deleteListItem, odataQuote, queryListItems, updateListItem, type ListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
 import { getFormById } from "./forms";
 import { appendResponseRow, findRowIndexByResponseId, updateResponseRow } from "./excel";
@@ -80,7 +80,7 @@ export async function getUnresolved() {
 /** The current user's own stragglers, for silent self-retry on load (Phase 3). */
 export async function getPendingForUser(email: string) {
   return queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
-    filter: `fields/SubmitterEmail eq '${email}' and fields/Status ne 'done'`,
+    filter: `fields/SubmitterEmail eq '${odataQuote(email)}' and fields/Status ne 'done'`,
   });
 }
 
@@ -88,7 +88,7 @@ export async function getPendingForUser(email: string) {
  *  builder page, so an admin doesn't have to scan the tenant-wide list. */
 export async function getUnresolvedForForm(formId: string) {
   return queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
-    filter: `fields/FormId eq '${formId}' and fields/Status ne 'done'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}' and fields/Status ne 'done'`,
   });
 }
 
@@ -97,7 +97,7 @@ export async function getUnresolvedForForm(formId: string) {
  *  leave orphaned "failed"/"pending" rows pointing at nothing. */
 export async function deleteAllForForm(formId: string): Promise<void> {
   const items = await queryListItems<SyncQueueFields>(LIST_NAMES.syncQueue, {
-    filter: `fields/FormId eq '${formId}'`,
+    filter: `fields/FormId eq '${odataQuote(formId)}'`,
   });
   await Promise.all(items.map((item) => deleteListItem(LIST_NAMES.syncQueue, item.id)));
 }

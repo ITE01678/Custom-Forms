@@ -8,6 +8,17 @@ export interface ListItem<TFields> {
   fields: TFields;
 }
 
+/** Escapes a value for safe interpolation into an OData `$filter` string
+ *  literal (`eq '...'`) — standard OData string escaping doubles a literal
+ *  single quote. Without this, a value containing one (a name like
+ *  "D'Souza" or "O'Brien" is the realistic case, not an edge case) breaks
+ *  the query with a malformed filter instead of matching — e.g. a
+ *  connector-autofill lookup keyed on such a name fails outright for that
+ *  specific, common name pattern. */
+export function odataQuote(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 const listIdCache = new Map<string, string>();
 
 async function getListId(listName: string): Promise<string> {

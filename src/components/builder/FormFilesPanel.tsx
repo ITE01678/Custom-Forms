@@ -28,7 +28,14 @@ export function FormFilesPanel({ form }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [form]);
+    // Deliberately keyed on the two primitives that actually change what
+    // these links resolve to, not on `form` itself — every builder edit
+    // (title, a field, anything) creates a brand-new `form` object
+    // reference (see useFormBuilderStore's spread-on-every-change pattern),
+    // so depending on the whole object re-ran this on every keystroke,
+    // firing two fresh Graph calls each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.id, form.latestPublishedVersion]);
 
   return (
     <div className="form-files-panel">

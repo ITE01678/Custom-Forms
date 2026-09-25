@@ -61,6 +61,32 @@ function isFileAttachmentArray(v: AnswerValue): v is FileAttachment[] {
   return Array.isArray(v) && (v.length === 0 ? false : typeof v[0] === "object");
 }
 
+/** SubmittedAt/LastEditedAt are written as plain ISO date STRINGS, but if
+ *  the response workbook is ever opened directly in Excel (e.g. via the
+ *  admin's direct SharePoint link) and saved, Excel can silently reformat
+ *  a string that looks like a date into its own numeric date-serial cell
+ *  type. SheetJS then reads that cell back as a raw NUMBER (e.g. 46280.43)
+ *  instead of the original string — blindly String()-ifying that produces
+ *  something `new Date()` can't parse ("Invalid Date"), which is worse than
+ *  cosmetic: FillPage.tsx's edit-window check does
+ *  `new Date(submittedAt).getTime() + windowMs`, and NaN compares false
+ *  against everything, silently locking the response out of editing
+ *  forever regardless of the configured window. Recover a valid ISO
+ *  string from either representation; fall back to "" (treated as "no
+ *  restriction" by isWithinEditWindow) rather than a value that would
+ *  poison every comparison downstream. */
+function cellToIsoDateString(raw: unknown): string {
+  if (raw === undefined || raw === null || raw === "") return "";
+  if (typeof raw === "number") {
+    const parsed = XLSX.SSF.parse_date_code(raw);
+    if (!parsed) return "";
+    const ms = Date.UTC(parsed.y, parsed.m - 1, parsed.d, parsed.H ?? 0, parsed.M ?? 0, Math.floor(parsed.S ?? 0));
+    return Number.isNaN(ms) ? "" : new Date(ms).toISOString();
+  }
+  const asString = String(raw);
+  return Number.isNaN(new Date(asString).getTime()) ? "" : asString;
+}
+
 /** A static choice field's `value` (often an opaque key like "option-1", or
  *  a connector's raw column value like an email) is meaningless to anyone
  *  opening the workbook directly — resolve it to the designer-facing label
@@ -525,7 +551,7 @@ export async function updateResponseRow(
     }
 
     const prevEditCount = typeof current?.[5] === "number" ? current[5] : 0;
-    const originalSubmittedAt = (current?.[2] as string) || response.submittedAt || "";
+    const originalSubmittedAt = cellToIsoDateString(current?.[2]) || response.submittedAt || "";
 
     const metaValues: Row = [
       response.id,
@@ -577,8 +603,8 @@ export async function getResponseByRowIndex(form: FormDefinition, rowIndex: numb
     respondentUpn: String(raw[1]),
     answers,
     status: "submitted",
-    submittedAt: String(raw[2] || ""),
-    updatedAt: String((editCount > 0 ? raw[4] : raw[2]) || ""),
+    submittedAt: cellToIsoDateString(raw[2]),
+    updatedAt: cellToIsoDateString(editCount > 0 ? raw[4] : raw[2]),
     editHistory: [],
   };
 }

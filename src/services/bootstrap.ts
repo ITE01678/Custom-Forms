@@ -18,6 +18,7 @@ interface ColumnDef {
 }
 
 let ensured = false;
+let ensuring: Promise<void> | null = null;
 
 async function listExists(siteId: string, displayName: string): Promise<boolean> {
   try {
@@ -160,20 +161,38 @@ export const LIBRARY_NAMES = {
  *  owner-only model used so far. */
 export async function ensureFormsSiteStructure(): Promise<void> {
   if (ensured) return;
-  const { siteId } = await getFormsSite();
+  // Concurrent cold-load callers (several parts of the app call this
+  // independently, e.g. listMyForms and getFormById can both fire before
+  // either resolves) used to each see `ensured === false` and race to
+  // create the same lists — SharePoint list display names must be unique
+  // per site, so the loser of that race got a 400 back from Graph,
+  // surfacing as a broken page purely from timing on a fresh tenant's very
+  // first load. Sharing the in-flight promise makes every concurrent
+  // caller await the SAME attempt instead of starting their own.
+  if (ensuring) return ensuring;
 
-  await Promise.all([
-    ensureList(siteId, LIST_NAMES.forms, FORMS_LIST_COLUMNS),
-    ensureList(siteId, LIST_NAMES.syncQueue, SYNC_QUEUE_COLUMNS),
-    ensureList(siteId, LIST_NAMES.responseIndex, RESPONSE_INDEX_COLUMNS),
-    ensureList(siteId, LIST_NAMES.auditLog, AUDIT_LOG_COLUMNS),
-    ensureList(siteId, LIST_NAMES.connectorConfigs, CONNECTOR_CONFIGS_COLUMNS),
-    ensureList(siteId, LIST_NAMES.drafts, DRAFTS_COLUMNS),
-    ensureList(siteId, LIST_NAMES.responseRouting, RESPONSE_ROUTING_COLUMNS),
-    ensureLibrary(siteId, LIBRARY_NAMES.responseWorkbooks),
-    ensureLibrary(siteId, LIBRARY_NAMES.formVersions),
-    ensureLibrary(siteId, LIBRARY_NAMES.attachments),
-  ]);
+  ensuring = (async () => {
+    const { siteId } = await getFormsSite();
 
-  ensured = true;
+    await Promise.all([
+      ensureList(siteId, LIST_NAMES.forms, FORMS_LIST_COLUMNS),
+      ensureList(siteId, LIST_NAMES.syncQueue, SYNC_QUEUE_COLUMNS),
+      ensureList(siteId, LIST_NAMES.responseIndex, RESPONSE_INDEX_COLUMNS),
+      ensureList(siteId, LIST_NAMES.auditLog, AUDIT_LOG_COLUMNS),
+      ensureList(siteId, LIST_NAMES.connectorConfigs, CONNECTOR_CONFIGS_COLUMNS),
+      ensureList(siteId, LIST_NAMES.drafts, DRAFTS_COLUMNS),
+      ensureList(siteId, LIST_NAMES.responseRouting, RESPONSE_ROUTING_COLUMNS),
+      ensureLibrary(siteId, LIBRARY_NAMES.responseWorkbooks),
+      ensureLibrary(siteId, LIBRARY_NAMES.formVersions),
+      ensureLibrary(siteId, LIBRARY_NAMES.attachments),
+    ]);
+
+    ensured = true;
+  })();
+
+  try {
+    await ensuring;
+  } finally {
+    ensuring = null;
+  }
 }

@@ -159,7 +159,15 @@ function fromCellValue(field: FormField, raw: unknown): AnswerValue {
     }
   }
   if (field.type === "number" || field.type === "rating") {
-    return typeof raw === "number" ? raw : Number(raw);
+    if (typeof raw === "number") return raw;
+    // A cell that's been hand-edited directly in Excel (e.g. someone typed
+    // "N/A" over a number answer) would otherwise silently become NaN here
+    // — and if that response is later re-saved for an unrelated reason,
+    // toCellValue's fallthrough would write the bare NaN right back,
+    // corrupting the cell indefinitely. Fall back to null (same as "no
+    // answer") instead of propagating a NaN nothing downstream expects.
+    const parsed = Number(raw);
+    return Number.isNaN(parsed) ? null : parsed;
   }
   return typeof raw === "boolean" ? raw : String(raw);
 }

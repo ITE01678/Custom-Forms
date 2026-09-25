@@ -350,6 +350,15 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                   fillMode,
                   readOnly: true,
                   graphAutofill: field.graphAutofill ?? { source: "self-profile", graphProperty: "department" },
+                  // Unlike the manual branch above, this was previously left
+                  // untouched — a field switched away from connector-autofill
+                  // with "Use results as selectable options" on kept a stale
+                  // connectorAutofill.dynamicOptions, which is what the
+                  // static-options editor's visibility (and the "options come
+                  // from the connector" message) key off, not fillMode. That
+                  // silently trapped the designer with no static options
+                  // editor and no connector fields either.
+                  connectorAutofill: undefined,
                 });
               } else {
                 set({

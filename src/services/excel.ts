@@ -219,6 +219,80 @@ function ensureHeaderRow(rows: Row[], form: FormDefinition): Row[] {
   return [computeHeaderRow(form), ...dataRows];
 }
 
+interface ReconciledColumns {
+  /** Full header row, including META_COLUMNS. */
+  header: Row;
+  /** One entry per FIELD column (i.e. per header cell after META_COLUMNS),
+   *  in the SAME order as those header cells. `null` means that column's
+   *  label doesn't match any field in the CURRENT form (the field was
+   *  removed, or renamed — see caveat below) — writers must leave that
+   *  column blank rather than guess, and readers must skip it. */
+  fieldOrder: (FormField | null)[];
+}
+
+/**
+ * The workbook's header is written ONCE, at first publish
+ * (ensureWorkbookForForm), and never touched again after that. But a form
+ * can be edited and republished any number of times afterward with a
+ * different field list (added/removed/reordered fields) — every write
+ * (appendResponseRow/updateResponseRow) and read (getResponseByRowIndex/
+ * getResponseRows) used to compute field-column positions fresh from
+ * `flattenFields(form)` on every call, which silently changes the instant
+ * the form's field list changes in a later version. Confirmed failure:
+ * publish v1 with fields A, B (header: Meta..., A, B); edit the form,
+ * remove B, add C, republish as v2; the next submission's row writes
+ * values for A, C — but the header still reads "B" in C's column, and any
+ * response written under a DIFFERENT version than whatever the caller's
+ * `form` happens to be silently shows under the wrong header.
+ *
+ * This reconciles the CURRENT form's fields against the sheet's ACTUAL
+ * existing header (ground truth), matching by column LABEL (the only
+ * thing actually persisted) — a field's column, once assigned, is never
+ * reordered or reused, even if the form is later edited/republished with
+ * a different field set. A genuinely new field (no existing column claims
+ * its label) gets a brand new column appended at the end. A column whose
+ * label no longer matches any current field (the field was removed) keeps
+ * its position — old data under it stays correctly labeled — but future
+ * writes leave it blank (`fieldOrder` has `null` there).
+ *
+ * Caveat: matching is by label, not a stable field id (nothing else is
+ * persisted in the sheet to match by) — renaming a field's label is
+ * indistinguishable from removing it and adding a new one, so it gets a
+ * new trailing column instead of reusing its old one. That's a much safer
+ * failure mode than the previous behavior (silently wrong data under an
+ * unrelated header): worst case here is a harmless extra column.
+ */
+function reconcileColumns(existingHeader: Row | undefined, form: FormDefinition): ReconciledColumns {
+  const currentFields = flattenFields(form);
+  const existingFieldLabels = (existingHeader ?? []).slice(META_COLUMNS.length).map((v) => String(v));
+
+  if (existingFieldLabels.length === 0) {
+    return { header: computeHeaderRow(form), fieldOrder: currentFields };
+  }
+
+  const currentByLabel = new Map(currentFields.map((f) => [f.label || f.id, f]));
+  const claimed = new Set<string>();
+  const fieldOrder: (FormField | null)[] = existingFieldLabels.map((label) => {
+    const match = currentByLabel.get(label);
+    if (!match || claimed.has(match.id)) return null; // also guards against two existing columns sharing a label
+    claimed.add(match.id);
+    return match;
+  });
+  const newFields = currentFields.filter((f) => !claimed.has(f.id));
+
+  return {
+    header: [...META_COLUMNS, ...existingFieldLabels, ...newFields.map((f) => f.label || f.id)],
+    fieldOrder: [...fieldOrder, ...newFields],
+  };
+}
+
+/** Pads a row with blank cells so it's at least `targetLength` long —
+ *  used when reconcileColumns grows the header (new fields appended),
+ *  so every existing data row still lines up with the new column count. */
+function padRow(row: Row, targetLength: number): Row {
+  return row.length >= targetLength ? row : [...row, ...Array(targetLength - row.length).fill("")];
+}
+
 async function workbookExists(driveId: string, formId: string): Promise<boolean> {
   try {
     await graphFetch(`/drives/${driveId}/root:/${workbookPath(formId)}?$select=id`, {
@@ -495,16 +569,19 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
     0,
     "Submitted",
   ];
-  const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
-  const newRow: Row = [...metaValues, ...fieldValues];
 
   return withOptimisticUpdate(driveId, workbookPath(form.id), (rows) => {
     const repaired = ensureHeaderRow(rows, form);
+    const { header, fieldOrder } = reconcileColumns(repaired[0] as Row, form);
+    const fieldValues = fieldOrder.map((f) => (f ? toCellValue(f, response.answers[f.id]) : ""));
+    const newRow: Row = [...metaValues, ...fieldValues];
+    const dataRows = repaired.slice(1).map((r) => padRow(r, header.length));
     return {
-      rows: [...repaired, newRow],
-      // repaired still includes the header row (index 0) — the new row's
-      // data-row index (header excluded) is its position before the push.
-      result: repaired.length - 1,
+      rows: [header, ...dataRows, newRow],
+      // dataRows.length = count of existing data rows, i.e. the new row's
+      // 0-indexed data-row position (header excluded), same convention as
+      // before.
+      result: dataRows.length,
     };
   });
 }
@@ -514,7 +591,7 @@ export async function appendResponseRow(form: FormDefinition, response: FormResp
  *  sorted/edited the sheet). Only triggered on a verification mismatch, not
  *  on every update. */
 export async function findRowIndexByResponseId(form: FormDefinition, responseId: string): Promise<number | null> {
-  const rows = await getResponseRows(form);
+  const { rows } = await getResponseRows(form);
   const idx = rows.findIndex((r) => r.values[0] === responseId);
   return idx === -1 ? null : idx;
 }
@@ -535,7 +612,6 @@ export async function updateResponseRow(
   editorEmail: string
 ): Promise<number> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
-  const fieldValues = flattenFields(form).map((f) => toCellValue(f, response.answers[f.id]));
 
   return withOptimisticUpdate(driveId, workbookPath(form.id), (rowsIn) => {
     const rows = ensureHeaderRow(rowsIn, form);
@@ -549,6 +625,9 @@ export async function updateResponseRow(
       rowIndex = found;
       current = rows[rowIndex + 1] as Row | undefined;
     }
+
+    const { header, fieldOrder } = reconcileColumns(rows[0] as Row, form);
+    const fieldValues = fieldOrder.map((f) => (f ? toCellValue(f, response.answers[f.id]) : ""));
 
     const prevEditCount = typeof current?.[5] === "number" ? current[5] : 0;
     const originalSubmittedAt = cellToIsoDateString(current?.[2]) || response.submittedAt || "";
@@ -564,7 +643,8 @@ export async function updateResponseRow(
     ];
     const newRow: Row = [...metaValues, ...fieldValues];
 
-    const nextRows = [...rows];
+    const nextRows = rows.map((r) => padRow(r, header.length));
+    nextRows[0] = header;
     nextRows[rowIndex + 1] = newRow;
     return { rows: nextRows, result: rowIndex };
   });
@@ -588,10 +668,10 @@ export async function getResponseByRowIndex(form: FormDefinition, rowIndex: numb
   const raw = rows[rowIndex + 1] as Row | undefined;
   if (!raw) return null;
 
-  const fields = flattenFields(form);
+  const { fieldOrder } = reconcileColumns(rows[0] as Row, form);
   const answers: Record<string, AnswerValue> = {};
-  fields.forEach((f, i) => {
-    answers[f.id] = fromCellValue(f, raw[META_COLUMNS.length + i]);
+  fieldOrder.forEach((f, i) => {
+    if (f) answers[f.id] = fromCellValue(f, raw[META_COLUMNS.length + i]);
   });
 
   const editCount = typeof raw[5] === "number" ? raw[5] : 0;
@@ -613,16 +693,24 @@ export interface ResponseRow {
   values: (string | number | boolean | null)[];
 }
 
-/** Raw rows for the admin response grid — column order matches
- *  META_COLUMNS + flattenFields(form). */
-export async function getResponseRows(form: FormDefinition): Promise<ResponseRow[]> {
+/** Raw rows for the admin response grid, plus the column headers those
+ *  rows actually line up with — the workbook's real, reconciled header
+ *  (see reconcileColumns), NOT necessarily just `flattenFields(form)` for
+ *  whatever version `form` happens to be, since a republished form's field
+ *  list can differ from what's on the sheet. Returning both together (from
+ *  the same read) is what keeps them in sync — computing columns
+ *  separately from `form` alone was the exact bug reconcileColumns fixes. */
+export async function getResponseRows(form: FormDefinition): Promise<{ columns: string[]; rows: ResponseRow[] }> {
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
-  if (!(await workbookExists(driveId, form.id))) return [];
+  if (!(await workbookExists(driveId, form.id))) return { columns: responseGridColumns(form), rows: [] };
 
   const rows = await readWorkbookRows(driveId, workbookPath(form.id));
-  return rows.slice(1).map((values) => ({ values }));
+  const { header } = reconcileColumns(rows[0] as Row, form);
+  return { columns: header.map(String), rows: rows.slice(1).map((values) => ({ values })) };
 }
 
+/** Fallback columns for a form with no workbook yet (nothing to reconcile
+ *  against) — current fields, in order. */
 export function responseGridColumns(form: FormDefinition): string[] {
   return [...META_COLUMNS, ...flattenFields(form).map((f) => f.label || f.id)];
 }

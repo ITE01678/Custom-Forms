@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getFormById } from "../../services/forms";
 import { getResponsesForForm } from "../../services/responses";
-import { responseGridColumns, type ResponseRow } from "../../services/excel";
+import type { ResponseRow } from "../../services/excel";
 import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { FormDefinition } from "../../formsSchema/types";
 
 export function ResponsesPage() {
   const { formId } = useParams<{ formId: string }>();
   const [form, setForm] = useState<FormDefinition | null>(null);
+  const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,8 +23,16 @@ export function ResponsesPage() {
         if (!stored) throw new Error("Form not found.");
         if (cancelled) return;
         setForm(stored.form);
-        const responseRows = await getResponsesForForm(stored.form);
-        if (!cancelled) setRows(responseRows);
+        // Columns come from the SAME read as the rows (the workbook's
+        // actual, reconciled header) — not recomputed separately from the
+        // current form definition, which could differ from what the sheet
+        // actually has if the form was edited/republished since responses
+        // were written under an earlier field list.
+        const { columns: gridColumns, rows: responseRows } = await getResponsesForForm(stored.form);
+        if (!cancelled) {
+          setColumns(gridColumns);
+          setRows(responseRows);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -37,8 +46,6 @@ export function ResponsesPage() {
 
   if (error) return <div className="page">{error}</div>;
   if (loading || !form) return <div className="page">Loading…</div>;
-
-  const columns = responseGridColumns(form);
 
   return (
     <div className="app-shell">

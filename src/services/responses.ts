@@ -268,7 +268,7 @@ export async function updateResponse(params: {
   return updated;
 }
 
-export async function getResponsesForForm(form: FormDefinition): Promise<ResponseRow[]> {
+export async function getResponsesForForm(form: FormDefinition): Promise<{ columns: string[]; rows: ResponseRow[] }> {
   return getResponseRows(form);
 }
 

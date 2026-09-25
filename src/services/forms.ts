@@ -237,7 +237,7 @@ async function deleteFormVersionsFolderIfExists(formId: string): Promise<void> {
  * since this is a destructive, irreversible operation.
  */
 export async function deleteForm(stored: StoredForm): Promise<void> {
-  const responseCount = (await getResponseRows(stored.form)).length;
+  const responseCount = (await getResponseRows(stored.form)).rows.length;
   if (responseCount > 0) {
     throw new Error(
       `This form has ${responseCount} response(s) — it can't be deleted. Archive it instead to remove it ` +

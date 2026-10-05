@@ -1,6 +1,35 @@
 import { graphFetch, graphFetchAllPages } from "./graphClient";
+import { GraphError } from "./graphErrors";
 import { getFormsSite, resolveListId } from "./sites";
 import { graphScopes } from "../auth/msalConfig";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retries a List item write that hit a 423 resourceLocked — the same class
+ *  of failure fixed in excel.ts's withOptimisticUpdate (a co-authoring/
+ *  workflow lock on the item or list), generalized here since every
+ *  List-backed service (SyncQueue, ConnectorConfigs, ResponseIndex,
+ *  AuditLog, ResponseRouting, Drafts, Forms) goes through these three
+ *  functions. 429/503 are already retried inside graphFetch itself; this
+ *  only covers the one additional code graphFetch treats as immediately
+ *  fatal that's actually transient. Deliberately NOT retrying 409 here —
+ *  unlike a lock, a conflict on List writes can mean a genuine duplicate,
+ *  which retrying wouldn't fix and could mask. */
+async function withLockRetry<T>(fn: () => Promise<T>): Promise<T> {
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isLocked = err instanceof GraphError && err.status === 423;
+      if (!isLocked || attempt === maxAttempts) throw err;
+      await sleep(1000 * attempt);
+    }
+  }
+  throw new Error("unreachable"); // loop always returns or throws — keeps TS happy
+}
 
 export interface ListItem<TFields> {
   /** SharePoint's own item id (string) — internal only, never used as a business key. */
@@ -67,11 +96,13 @@ export async function createListItem<TFields extends object>(
 ): Promise<ListItem<TFields>> {
   const { siteId } = await getFormsSite();
   const listId = await getListId(listName);
-  return graphFetch<ListItem<TFields>>(`/sites/${siteId}/lists/${listId}/items`, {
-    method: "POST",
-    body: { fields },
-    scopes: graphScopes.sites,
-  });
+  return withLockRetry(() =>
+    graphFetch<ListItem<TFields>>(`/sites/${siteId}/lists/${listId}/items`, {
+      method: "POST",
+      body: { fields },
+      scopes: graphScopes.sites,
+    })
+  );
 }
 
 export async function updateListItem<TFields extends object>(
@@ -81,18 +112,22 @@ export async function updateListItem<TFields extends object>(
 ): Promise<void> {
   const { siteId } = await getFormsSite();
   const listId = await getListId(listName);
-  await graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}/fields`, {
-    method: "PATCH",
-    body: fields,
-    scopes: graphScopes.sites,
-  });
+  await withLockRetry(() =>
+    graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}/fields`, {
+      method: "PATCH",
+      body: fields,
+      scopes: graphScopes.sites,
+    })
+  );
 }
 
 export async function deleteListItem(listName: string, itemId: string): Promise<void> {
   const { siteId } = await getFormsSite();
   const listId = await getListId(listName);
-  await graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}`, {
-    method: "DELETE",
-    scopes: graphScopes.sites,
-  });
+  await withLockRetry(() =>
+    graphFetch(`/sites/${siteId}/lists/${listId}/items/${itemId}`, {
+      method: "DELETE",
+      scopes: graphScopes.sites,
+    })
+  );
 }

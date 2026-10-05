@@ -1,6 +1,6 @@
 import { createListItem, deleteListItem, odataQuote, queryListItems, updateListItem, type ListItem } from "./lists";
 import { LIST_NAMES } from "./bootstrap";
-import { getFormById } from "./forms";
+import { getFormById, getFormVersion } from "./forms";
 import { appendResponseRow, findRowIndexByResponseId, updateResponseRow } from "./excel";
 import { upsertIndex } from "./responseIndex";
 import type { FormResponse } from "../formsSchema/types";
@@ -110,31 +110,63 @@ export async function deleteAllForForm(formId: string): Promise<void> {
  * failed item's index was, by definition, never confirmed.
  */
 export async function retryItem(item: ListItem<SyncQueueFields>): Promise<void> {
-  const stored = await getFormById(item.fields.FormId);
-  if (!stored) throw new Error(`Form ${item.fields.FormId} no longer exists.`);
-  const response = JSON.parse(item.fields.PayloadJson) as FormResponse;
+  try {
+    const stored = await getFormById(item.fields.FormId);
+    if (!stored) throw new Error(`Form ${item.fields.FormId} no longer exists.`);
+    const response = JSON.parse(item.fields.PayloadJson) as FormResponse;
 
-  let rowIndex: number;
-  if (item.fields.Operation === "insert") {
-    const existing = await findRowIndexByResponseId(stored.form, response.id);
-    if (existing === null) {
-      // appendResponseRow returns the index it just wrote directly — no
-      // separate re-read needed (and no risk of that re-read racing a
-      // just-completed upload; see excel.ts's doc comment on it).
-      rowIndex = await appendResponseRow(stored.form, response);
+    // Must resolve the EXACT version this response's answers were captured
+    // against, not whatever the form's current/latest draft happens to be —
+    // otherwise a form edit/republish that lands while this item sits stuck
+    // (renaming/regenerating a choice field's options is the common case)
+    // makes resolveOptionLabel's lookup miss, silently writing the raw
+    // internal option value (e.g. "option-4-aa71") instead of its label. Same
+    // pattern FillPage/ResponseDetailPage/ApprovePage already use for editing
+    // an existing response. Falls back to the current form only if that exact
+    // version snapshot is gone (shouldn't normally happen — versions are
+    // immutable once published).
+    const pinnedForm = (await getFormVersion(item.fields.FormId, response.formVersion)) ?? stored.form;
+
+    let rowIndex: number;
+    if (item.fields.Operation === "insert") {
+      const existing = await findRowIndexByResponseId(pinnedForm, response.id);
+      if (existing === null) {
+        // appendResponseRow returns the index it just wrote directly — no
+        // separate re-read needed (and no risk of that re-read racing a
+        // just-completed upload; see excel.ts's doc comment on it).
+        rowIndex = await appendResponseRow(pinnedForm, response);
+      } else {
+        rowIndex = existing; // already landed on a prior attempt — just re-index, don't duplicate
+      }
     } else {
-      rowIndex = existing; // already landed on a prior attempt — just re-index, don't duplicate
+      const hint = (await findRowIndexByResponseId(pinnedForm, response.id)) ?? 0;
+      rowIndex = await updateResponseRow(pinnedForm, response, hint, item.fields.SubmitterEmail);
     }
-  } else {
-    const hint = (await findRowIndexByResponseId(stored.form, response.id)) ?? 0;
-    rowIndex = await updateResponseRow(stored.form, response, hint, item.fields.SubmitterEmail);
-  }
 
-  await upsertIndex({
-    formId: item.fields.FormId,
-    responseId: response.id,
-    submitterEmail: item.fields.SubmitterEmail,
-    rowIndex,
-  });
-  await markDone(item.id);
+    await upsertIndex({
+      formId: item.fields.FormId,
+      responseId: response.id,
+      submitterEmail: item.fields.SubmitterEmail,
+      rowIndex,
+    });
+    await markDone(item.id);
+  } catch (err) {
+    // Both callers (the admin's manual Sync Health retry button, and
+    // AuthGate's silent auto-retry-on-load) previously just logged this and
+    // moved on — the SyncQueue item itself was never updated, so a retry
+    // that failed again looked, to anyone checking Sync Health, identical to
+    // one that had never been retried at all: same stale Attempts count,
+    // same stale LastError from the original submit. Recording it here once,
+    // rather than duplicating this in both callers, keeps it accurate
+    // regardless of which path triggered the retry.
+    await markFailed(
+      item.id,
+      item.fields.Attempts + 1,
+      err instanceof Error ? err.message : String(err)
+    ).catch(() => {
+      // Best-effort — if recording the failure itself fails (e.g. the same
+      // transient Graph issue), don't mask the original error with this one.
+    });
+    throw err;
+  }
 }

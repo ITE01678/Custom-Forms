@@ -418,6 +418,10 @@ async function writeWorkbookRows(
  */
 class WriteVerificationError extends Error {}
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function withOptimisticUpdate<T>(
   driveId: string,
   itemPath: string,
@@ -452,6 +456,18 @@ async function withOptimisticUpdate<T>(
     } catch (err) {
       const isConflict = err instanceof GraphError && err.status === 412;
       const isVerificationMiss = err instanceof WriteVerificationError;
+      // 423 resourceLocked — someone else has the file open (Office
+      // co-authoring, a checked-out state, a browser tab left on the
+      // admin's "open in SharePoint" link) and SharePoint is refusing the
+      // write outright. Previously this fell into neither retry bucket
+      // below and was thrown straight back on attempt 1, giving it zero
+      // chance to recover here — the only recovery path was the SyncQueue's
+      // later auto-retry-on-load, which could be minutes or longer away.
+      // Locks like this are usually short-lived (they clear when the other
+      // session ends), so it's worth a few delayed retries before giving up
+      // to this same synchronous submit/edit call.
+      const isLocked = err instanceof GraphError && err.status === 423;
+      const willRetry = (isConflict || isVerificationMiss || isLocked) && attempt < maxAttempts;
       // Deliberately permanent, not temporary debug logging — this file's
       // whole write path has a real history of failures that were
       // otherwise completely silent (see git history), and this is the one
@@ -464,12 +480,14 @@ async function withOptimisticUpdate<T>(
         errMessage: err instanceof Error ? err.message : String(err),
         graphStatus: err instanceof GraphError ? err.status : undefined,
         graphBody: err instanceof GraphError ? err.body : undefined,
-        willRetry: (isConflict || isVerificationMiss) && attempt < maxAttempts,
+        willRetry,
       });
-      if ((!isConflict && !isVerificationMiss) || attempt === maxAttempts) throw err;
-      // Someone else wrote first (conflict), or this write didn't actually
-      // take effect (verification miss) — either way, loop and try again
-      // from a fresh read rather than blindly retrying the identical bytes.
+      if (!willRetry) throw err;
+      // Someone else wrote first (conflict) or this write didn't actually
+      // take effect (verification miss) — a fresh read is all either needs,
+      // so loop immediately. A lock needs actual elapsed time to clear, not
+      // just a fresh read, so give it one.
+      if (isLocked) await sleep(1000 * attempt);
     }
   }
   throw new Error("Could not save — too many concurrent edits, please try again.");
@@ -517,6 +535,14 @@ export async function ensureWorkbookForForm(form: FormDefinition): Promise<void>
  * (index-cache + self-heal strategy, which still needs a fresh read).
  */
 export async function appendResponseRow(form: FormDefinition, response: FormResponse): Promise<number> {
+  // Mirrors the read-side guard in getResponseByRowIndex/getResponseRows —
+  // that guard hides a row with a blank/malformed ResponseId from the app
+  // once it's already in the sheet, but does nothing to stop one from being
+  // written in the first place. Fail loudly here instead of silently
+  // persisting a row nothing can ever look up by id again.
+  if (!UUID_SHAPE.test(response.id)) {
+    throw new Error(`Refusing to write a response row with a non-UUID ResponseId: ${JSON.stringify(response.id)}`);
+  }
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
   const metaValues: Row = [
     response.id,
@@ -569,6 +595,10 @@ export async function updateResponseRow(
   cachedRowIndex: number,
   editorEmail: string
 ): Promise<number> {
+  // Same write-side guard as appendResponseRow — see its comment.
+  if (!UUID_SHAPE.test(response.id)) {
+    throw new Error(`Refusing to write a response row with a non-UUID ResponseId: ${JSON.stringify(response.id)}`);
+  }
   const driveId = await resolveDriveIdByLibraryName(LIBRARY_NAMES.responseWorkbooks);
 
   return withOptimisticUpdate(driveId, workbookPath(form.id), (rowsIn) => {
@@ -648,7 +678,12 @@ export async function getResponseByRowIndex(form: FormDefinition, rowIndex: numb
     id: String(raw[0]),
     formId: form.id,
     formVersion: form.latestPublishedVersion ?? form.currentDraftVersion,
-    respondentUpn: String(raw[1]),
+    // Guard against a missing/blank cell the same way cellToIsoDateString
+    // does — bare String(undefined) would otherwise write the literal text
+    // "undefined" into respondentUpn, and since updateResponse spreads the
+    // existing response before re-saving, that bad value then survives and
+    // gets re-persisted on every future edit.
+    respondentUpn: typeof raw[1] === "string" && raw[1] ? raw[1] : "",
     answers,
     status: "submitted",
     submittedAt: cellToIsoDateString(raw[2]),

@@ -117,15 +117,21 @@ export const loginRequest = {
   // approve/reject), via POST /me/sendMail. Needs one-time admin consent
   // (see SETUP.md), same as the other high-privilege scopes here.
   //
-  // https://{hostname}/.default: a SEPARATE OAuth resource audience from
-  // graph.microsoft.com — SharePoint's classic REST API (services/
-  // spRestClient.ts, services/siteRoles.ts), used ONLY to read which native
-  // SharePoint permission group (Owners/Members) the signed-in user belongs
-  // to, since Graph v1.0 has no endpoint for that. Bundled into the same
-  // upfront consent as everything else here so it's one admin-consent round
-  // trip, not a surprise mid-session popup — see SETUP.md for the exact
-  // Azure Portal steps (a different "APIs my organization uses" entry than
-  // Microsoft Graph, not a Graph permission).
+  // The SharePoint REST scope (spRestScopes.site, below) is DELIBERATELY NOT
+  // included here. A `.default` scope is Azure AD's shorthand for "whatever
+  // this app registration already has configured + consented for this one
+  // resource" — and it can ONLY be requested alone, never combined with
+  // named scopes for a different resource, in a single authorize call. Login
+  // previously requested Graph's named scopes together with
+  // `https://{hostname}/.default` in one call, which Azure AD rejects
+  // outright (AADSTS70011: ".default scope can't be combined with
+  // resource-specific scopes") — breaking sign-in for EVERY user, not
+  // degrading the one feature. Fixed by leaving it out here entirely:
+  // services/siteRoles.ts acquires that token in its own separate call (via
+  // graphClient.ts's getDelegatedToken, same mechanism as every other scope
+  // bucket below), which silently succeeds once a tenant admin has granted
+  // consent for it (see SETUP.md) — no second interactive prompt needed in
+  // practice, since the account already has an active SSO session.
   scopes: [
     "openid",
     "profile",
@@ -135,7 +141,6 @@ export const loginRequest = {
     "Sites.Manage.All",
     "Sites.ReadWrite.All",
     "Mail.Send",
-    ...(SHAREPOINT_HOSTNAME ? [`https://${SHAREPOINT_HOSTNAME}/.default`] : []),
   ],
   // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
   // above. RedirectRequest's type omits a per-request responseMode field entirely,

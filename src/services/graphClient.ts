@@ -63,6 +63,14 @@ export interface GraphRequestOptions {
   retries?: number;
   /** Absolute URL (e.g. an @odata.nextLink) instead of a /v1.0-relative path. */
   absoluteUrl?: boolean;
+  /** Overrides GRAPH_BASE for this call — used by services/spRestClient.ts to
+   *  point this same hardened fetch wrapper at SharePoint's classic REST API
+   *  (https://{tenant}.sharepoint.com{sitePath}/_api) instead of Graph, so
+   *  that API doesn't need its own token-acquisition/retry/error-typing
+   *  logic duplicated. The 403 WAC/premium body-sniffing below is
+   *  Graph-specific and is a harmless no-op against SharePoint REST
+   *  responses (their body just won't match either regex). */
+  baseUrl?: string;
   /** Extra headers to merge in — e.g. `Prefer: HonorNonIndexedQueriesWarningMayFailRandomly`
    *  for SharePoint List $filter queries on non-indexed columns. */
   headers?: Record<string, string>;
@@ -82,7 +90,8 @@ export interface GraphRequestOptions {
 export async function graphFetch<T>(path: string, opts: GraphRequestOptions = {}): Promise<T> {
   const scopes = opts.scopes ?? ["User.Read"];
   const maxRetries = opts.retries ?? 3;
-  const url = opts.absoluteUrl || path.startsWith("http") ? path : `${GRAPH_BASE}${path}`;
+  const base = opts.baseUrl ?? GRAPH_BASE;
+  const url = opts.absoluteUrl || path.startsWith("http") ? path : `${base}${path}`;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const token = await getDelegatedToken(scopes, opts.interactive ?? true);

@@ -28,6 +28,10 @@ if (!clientId || !tenantId) {
 export const ALLOWED_DOMAIN =
   (import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined) ?? "jil-jupiter.com";
 
+// Same hostname sites.ts already needs — reused here, not re-declared, so the
+// two never drift apart.
+const SHAREPOINT_HOSTNAME = import.meta.env.VITE_SHAREPOINT_HOSTNAME as string | undefined;
+
 export const msalConfig: Configuration = {
   auth: {
     clientId: clientId ?? "",
@@ -112,6 +116,16 @@ export const loginRequest = {
   // always sends as whichever signed-in user just took the action (submit/
   // approve/reject), via POST /me/sendMail. Needs one-time admin consent
   // (see SETUP.md), same as the other high-privilege scopes here.
+  //
+  // https://{hostname}/.default: a SEPARATE OAuth resource audience from
+  // graph.microsoft.com — SharePoint's classic REST API (services/
+  // spRestClient.ts, services/siteRoles.ts), used ONLY to read which native
+  // SharePoint permission group (Owners/Members) the signed-in user belongs
+  // to, since Graph v1.0 has no endpoint for that. Bundled into the same
+  // upfront consent as everything else here so it's one admin-consent round
+  // trip, not a surprise mid-session popup — see SETUP.md for the exact
+  // Azure Portal steps (a different "APIs my organization uses" entry than
+  // Microsoft Graph, not a Graph permission).
   scopes: [
     "openid",
     "profile",
@@ -121,6 +135,7 @@ export const loginRequest = {
     "Sites.Manage.All",
     "Sites.ReadWrite.All",
     "Mail.Send",
+    ...(SHAREPOINT_HOSTNAME ? [`https://${SHAREPOINT_HOSTNAME}/.default`] : []),
   ],
   // NOTE: responseMode is intentionally NOT set here — see msalConfig.auth.OIDCOptions
   // above. RedirectRequest's type omits a per-request responseMode field entirely,
@@ -136,4 +151,12 @@ export const graphScopes = {
   // above for why this needs to be ReadWrite.All specifically, not Manage.All.
   excel: ["Sites.ReadWrite.All", "Sites.Manage.All"],
   mail: ["Mail.Send"],
+};
+
+/** SharePoint classic REST API scope — see the loginRequest comment above.
+ *  Empty when VITE_SHAREPOINT_HOSTNAME isn't configured yet (dev-without-env
+ *  case), matching this file's existing pattern of warning instead of
+ *  throwing at import time when config is missing. */
+export const spRestScopes = {
+  site: SHAREPOINT_HOSTNAME ? [`https://${SHAREPOINT_HOSTNAME}/.default`] : [],
 };

@@ -47,6 +47,18 @@ Then, on the new registration:
     send fails (missing consent, offline, etc.) the underlying submit/
     approve/reject action still succeeds — the email is best-effort only,
     with no retry queue in this version.
+- **API permissions → Add a permission → APIs my organization uses → "SharePoint"
+  → Delegated permissions**: `AllSites.Read` (**needs admin consent**, once).
+  This is a **different, older API entry than Microsoft Graph** — don't look
+  for it under the Graph permissions above. It lets the app read which native
+  SharePoint permission group (Owners vs Members) the signed-in user belongs
+  to on the data site, to resolve their in-app role (see "Role model" below).
+  Graph v1.0 has no endpoint for "which SharePoint group is this user in," so
+  this is acquired as a second, separate delegated token against
+  `https://{tenant}.sharepoint.com` rather than `graph.microsoft.com` — see
+  `src/auth/msalConfig.ts`'s `spRestScopes` and `src/services/spRestClient.ts`.
+  It's read-only (`AllSites.Read`, not `.Write`) — this feature never changes
+  real SharePoint permissions, only reads them.
 - **Authentication**: confirm "Allow public client flows" is enabled if prompted
   (this is a public client — no secret, nothing to protect on a static site)
 - Restrict who can sign in: **Enterprise applications → Custom Forms → Properties →
@@ -82,7 +94,43 @@ if you'd rather pre-create the lists yourself.
 Grant the security group used above at least **Edit/Contribute** on the site so
 signed-in users can read/write via their own delegated Graph token (including
 creating the Lists/libraries themselves on first run) — there's no app-only
-credential to grant broader access instead.
+credential to grant broader access instead. **This is still the actual minimum
+for anyone to use the app at all, including just submitting a response** — the
+role model below only governs who can reach the *builder* and *admin* pages;
+submitting a response to a published form has always been (and still is)
+gated purely by that form's own "who can respond" setting, not by site role.
+An account with only **Read/Visitor** permission on the site can't write to it
+and will see a permission error on submit, same as before this feature
+existed.
+
+### Role model: Owner / Admin / Member
+
+Every signed-in user gets one of three in-app roles, resolved automatically —
+nothing to configure for the common case:
+
+- **Owner** — maps to the site's native **Owners** group (Full Control).
+  Unrestricted access to every form, every response, and every admin page
+  (Connectors, Sync Health, Manage Roles) regardless of who created what.
+- **Member** — maps to the site's native **Members** group (Edit/Contribute) —
+  i.e. anyone who could already use the app before this feature existed. Can
+  fill out forms and see/edit their own past responses (**My responses**,
+  gated per-form by that form's edit policy, same as always); can't create
+  forms or see anyone else's responses unless explicitly granted access to a
+  specific form (see the builder's **Access** tab).
+- **Admin** — an *app-only* tier with no native SharePoint equivalent: can
+  create forms (and manage/view responses for forms they own or are granted
+  access to), plus everything a Member can do. Since SharePoint itself has no
+  third permission tier, **Admin can only be granted as an override** — see
+  below.
+
+**Overriding someone's role** — a Site Owner can promote/demote any email
+(e.g. make a specific Member into an Admin, without changing their actual
+SharePoint group membership) from **Manage roles** (in the app's nav once
+signed in as an Owner). This writes to a new `AppRoles` List (auto-provisioned
+alongside the others) and takes effect the next time that person reloads or
+signs back in — it's purely additive on top of native SharePoint group
+membership, never a replacement for it, so removing an override just reverts
+that person to whatever their real SharePoint group already gives them.
 
 **Security note:** the `ConnectorConfigs` list can hold connection details for
 external data sources (e.g. a Power Automate flow URL, which acts like a bearer

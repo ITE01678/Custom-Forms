@@ -220,7 +220,7 @@ export function BuilderPage() {
 
       {tab === "branching" && <BranchingPanel form={form} />}
       {tab === "branding" && <BrandingPanel form={form} />}
-      {tab === "sharing" && <SharingPanel form={form} />}
+      {tab === "sharing" && <SharingPanel form={form} onOpenAccessTab={() => setTab("access")} />}
       {tab === "access" && <AccessControlPanel form={form} capabilities={capabilities} />}
       {tab === "settings" && (
         <>

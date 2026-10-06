@@ -5,9 +5,13 @@ import type { FormDefinition } from "../../formsSchema/types";
 
 interface Props {
   form: FormDefinition;
+  /** Switches BuilderPage to the Access tab — lets this panel point
+   *  directly at the co-design/collaborator feature instead of just
+   *  describing where to find it. */
+  onOpenAccessTab?: () => void;
 }
 
-export function SharingPanel({ form }: Props) {
+export function SharingPanel({ form, onOpenAccessTab }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -42,32 +46,46 @@ export function SharingPanel({ form }: Props) {
     link.click();
   }
 
-  if (!shareUrl) {
-    return (
+  return (
+    <>
       <div className="panel">
         <h3>Sharing</h3>
-        <p>Publish the form to get a shareable link and QR code.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="panel">
-      <h3>Sharing</h3>
-      <div className="builder-share">
-        <div className="builder-share__link">
-          <p>Anyone signed in with their official Microsoft account can open this link:</p>
-          <code>{shareUrl}</code>
-          <button onClick={handleCopy}>{copied ? "Copied!" : "Copy link"}</button>{" "}
-          <Link to={`/admin/forms/${form.id}/responses`}>View responses →</Link>
-        </div>
-        <div className="builder-share__qr">
-          <canvas ref={canvasRef} />
-          <div>
-            <button onClick={handleDownloadQr}>Download QR</button>
+        {shareUrl ? (
+          <div className="builder-share">
+            <div className="builder-share__link">
+              <p>Anyone signed in with their official Microsoft account can open this link:</p>
+              <code>{shareUrl}</code>
+              <button onClick={handleCopy}>{copied ? "Copied!" : "Copy link"}</button>{" "}
+              <Link to={`/admin/forms/${form.id}/responses`}>View responses →</Link>
+            </div>
+            <div className="builder-share__qr">
+              <canvas ref={canvasRef} />
+              <div>
+                <button onClick={handleDownloadQr}>Download QR</button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <p>Publish the form to get a shareable link and QR code — a respondent's link, for filling it out.</p>
+        )}
       </div>
-    </div>
+
+      <div className="panel callout-panel">
+        <h3>🤝 Want someone else to help build this?</h3>
+        <p>
+          A share link above is for <strong>respondents</strong> — people filling out the form. To invite
+          a colleague to <strong>co-design</strong> this form with you (edit content, branding, settings —
+          continue where you left off), grant them access from the{" "}
+          {onOpenAccessTab ? (
+            <button type="button" className="link-button" onClick={onOpenAccessTab}>
+              Access tab
+            </button>
+          ) : (
+            "Access tab"
+          )}{" "}
+          instead. They don't need the form's link at all — once granted, it shows up on their own Dashboard.
+        </p>
+      </div>
+    </>
   );
 }

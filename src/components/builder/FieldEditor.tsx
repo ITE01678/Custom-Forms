@@ -58,6 +58,9 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
 
   const isChoice = CHOICE_TYPES.has(field.type);
   const isText = TEXT_TYPES.has(field.type);
+  const isGraphConnector =
+    field.connectorAutofill?.connectorType === "graph-directReports" ||
+    field.connectorAutofill?.connectorType === "graph-profile";
   const isNumber = field.type === "number";
   const isFileUpload = field.type === "fileUpload";
   const isAutofill = field.fillMode !== "manual";
@@ -550,7 +553,7 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                           },
                         })
                       }
-                      placeholder="e.g. Employee Mail"
+                      placeholder={isGraphConnector ? "mail" : "e.g. Employee Mail"}
                     />
                   </label>
                   <label>
@@ -567,14 +570,26 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                           },
                         })
                       }
-                      placeholder="e.g. Employee Name"
+                      placeholder={isGraphConnector ? "displayName" : "e.g. Employee Name"}
                     />
                   </label>
-                  <p className="fill-field__help">
-                    One option per matched row — a manager with 5 reports sees 5 checkboxes, one
-                    with 3 sees 3. Column names must match the connector's source exactly (for a
-                    shared Excel file, its header row).
-                  </p>
+                  {isGraphConnector ? (
+                    <p className="fill-field__help">
+                      One option per matched row (e.g. one per direct report). This connector
+                      returns Microsoft profile properties, not spreadsheet column names — use
+                      the exact property name: <code>mail</code>, <code>userPrincipalName</code>,{" "}
+                      <code>displayName</code>, <code>department</code>, <code>jobTitle</code>, or{" "}
+                      <code>employeeId</code>. Using <code>mail</code> as the Label column will
+                      show email addresses instead of names in the picker and in exported
+                      responses — use <code>displayName</code> for that.
+                    </p>
+                  ) : (
+                    <p className="fill-field__help">
+                      One option per matched row — a manager with 5 reports sees 5 checkboxes, one
+                      with 3 sees 3. Column names must match the connector's source exactly (for a
+                      shared Excel file, its header row).
+                    </p>
+                  )}
                 </>
               ) : (
                 <label>

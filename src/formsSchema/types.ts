@@ -316,12 +316,11 @@ export interface FormCollaborator {
   addedAt: string;
 }
 
-/** One override of a user's SITE-WIDE role, independent of any single form —
- *  lives in the AppRoles SharePoint List (services/siteRoles.ts). Absence of
- *  a row for an email means "derive the role from native SharePoint group
- *  membership instead" (see siteRoles.ts) — this is purely additive over the
- *  pre-existing owner-only model: every real SharePoint owner/member keeps
- *  working exactly as before with zero setup. */
+/** A user's SITE-WIDE role — the AppRoles SharePoint List (services/
+ *  siteRoles.ts) is the sole source of truth. Absence of a row for an email
+ *  means "member" (the fail-safe default — see siteRoles.ts for why the
+ *  earlier plan to derive a default from native SharePoint group membership
+ *  was dropped). */
 export interface AppRoleOverride {
   email: string; // lowercased UPN, unique key
   role: SiteRole;

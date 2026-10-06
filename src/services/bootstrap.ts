@@ -165,10 +165,11 @@ const FORM_PERMISSIONS_COLUMNS: ColumnDef[] = [
   { name: "AddedAt", text: {} },
 ];
 
-/** One row per email with a site-wide role override (services/siteRoles.ts).
- *  Absence of a row means "derive the role from native SharePoint Owners/
- *  Members group membership instead" — purely additive, never required for
- *  the app's pre-existing owner-only model to keep working. */
+/** One row per email with a site-wide role (services/siteRoles.ts) — the
+ *  sole source of truth for site roles. Absence of a row means "member",
+ *  the fail-safe default. The very first Owner row has to be seeded by
+ *  hand (Site Contents → AppRoles → New item) since nobody can reach the
+ *  in-app Manage Roles page before it exists — see SETUP.md. */
 const APP_ROLES_COLUMNS: ColumnDef[] = [
   { name: "Email", text: {} },
   { name: "Role", text: {} },

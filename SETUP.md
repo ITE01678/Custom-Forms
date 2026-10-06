@@ -47,18 +47,6 @@ Then, on the new registration:
     send fails (missing consent, offline, etc.) the underlying submit/
     approve/reject action still succeeds — the email is best-effort only,
     with no retry queue in this version.
-- **API permissions → Add a permission → APIs my organization uses → "SharePoint"
-  → Delegated permissions**: `AllSites.Read` (**needs admin consent**, once).
-  This is a **different, older API entry than Microsoft Graph** — don't look
-  for it under the Graph permissions above. It lets the app read which native
-  SharePoint permission group (Owners vs Members) the signed-in user belongs
-  to on the data site, to resolve their in-app role (see "Role model" below).
-  Graph v1.0 has no endpoint for "which SharePoint group is this user in," so
-  this is acquired as a second, separate delegated token against
-  `https://{tenant}.sharepoint.com` rather than `graph.microsoft.com` — see
-  `src/auth/msalConfig.ts`'s `spRestScopes` and `src/services/spRestClient.ts`.
-  It's read-only (`AllSites.Read`, not `.Write`) — this feature never changes
-  real SharePoint permissions, only reads them.
 - **Authentication**: confirm "Allow public client flows" is enabled if prompted
   (this is a public client — no secret, nothing to protect on a static site)
 - Restrict who can sign in: **Enterprise applications → Custom Forms → Properties →
@@ -105,32 +93,44 @@ existed.
 
 ### Role model: Owner / Admin / Member
 
-Every signed-in user gets one of three in-app roles, resolved automatically —
-nothing to configure for the common case:
+Every signed-in user gets one of three in-app roles — **Owner** (unrestricted
+access to every form, every response, and every admin page — Connectors, Sync
+Health, Manage Roles — regardless of who created what), **Admin** (can create
+forms, plus manage/view responses for forms they own or are granted access
+to), or **Member** (can fill out forms and see/edit their own past responses
+— **My responses**, gated per-form by that form's edit policy — but can't
+create forms or see anyone else's responses unless explicitly granted access
+to a specific form via the builder's **Access** tab).
 
-- **Owner** — maps to the site's native **Owners** group (Full Control).
-  Unrestricted access to every form, every response, and every admin page
-  (Connectors, Sync Health, Manage Roles) regardless of who created what.
-- **Member** — maps to the site's native **Members** group (Edit/Contribute) —
-  i.e. anyone who could already use the app before this feature existed. Can
-  fill out forms and see/edit their own past responses (**My responses**,
-  gated per-form by that form's edit policy, same as always); can't create
-  forms or see anyone else's responses unless explicitly granted access to a
-  specific form (see the builder's **Access** tab).
-- **Admin** — an *app-only* tier with no native SharePoint equivalent: can
-  create forms (and manage/view responses for forms they own or are granted
-  access to), plus everything a Member can do. Since SharePoint itself has no
-  third permission tier, **Admin can only be granted as an override** — see
-  below.
+**This is resolved entirely from the app's own `AppRoles` SharePoint List
+(auto-provisioned alongside the others) — there is no automatic default based
+on real SharePoint site permissions.** An earlier version of this app tried
+to derive a default from the site's native Owners/Members groups via
+SharePoint's classic REST API, which turned out not to be reachable at all
+from a static site like this one (SharePoint's `_api/...` surface doesn't
+honor cross-origin bearer-token calls the way Microsoft Graph does — a real
+call returned an HTML page instead of JSON). That path was removed entirely;
+if you went looking for an `AllSites.Read` SharePoint permission on the App
+Registration per an earlier version of this doc, it's no longer needed —
+harmless to leave configured if already granted, but safe to remove too.
 
-**Overriding someone's role** — a Site Owner can promote/demote any email
-(e.g. make a specific Member into an Admin, without changing their actual
-SharePoint group membership) from **Manage roles** (in the app's nav once
-signed in as an Owner). This writes to a new `AppRoles` List (auto-provisioned
-alongside the others) and takes effect the next time that person reloads or
-signs back in — it's purely additive on top of native SharePoint group
-membership, never a replacement for it, so removing an override just reverts
-that person to whatever their real SharePoint group already gives them.
+**Anyone with no row in `AppRoles` is a Member by default** — which means
+**the very first Owner has to be seeded by hand, once**, since Manage Roles
+itself (where you'd normally set this) is only reachable by an existing
+Owner:
+
+1. Open the data SharePoint site from step 2 → **Site contents** → the
+   **AppRoles** list (appears after the app's first successful load).
+2. **New item** → `Title`/`Email`: the person's lowercased UPN (e.g.
+   `name@jil-jupiter.com`) → `Role`: `owner` → `SetBy`: your own email →
+   `SetAt`: the current date/time (ISO, e.g. `2026-01-01T00:00:00.000Z`) →
+   Save.
+3. That person signs out and back in (or just reloads) — they now see
+   **Manage roles** in the nav and can promote/demote everyone else from
+   there going forward, instead of editing the List by hand again.
+
+Every change made from **Manage roles** takes effect for that person the
+next time they reload or sign back in — it's not a live push.
 
 **Security note:** the `ConnectorConfigs` list can hold connection details for
 external data sources (e.g. a Power Automate flow URL, which acts like a bearer

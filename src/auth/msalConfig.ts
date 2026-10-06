@@ -28,10 +28,6 @@ if (!clientId || !tenantId) {
 export const ALLOWED_DOMAIN =
   (import.meta.env.VITE_ALLOWED_DOMAIN as string | undefined) ?? "jil-jupiter.com";
 
-// Same hostname sites.ts already needs — reused here, not re-declared, so the
-// two never drift apart.
-const SHAREPOINT_HOSTNAME = import.meta.env.VITE_SHAREPOINT_HOSTNAME as string | undefined;
-
 export const msalConfig: Configuration = {
   auth: {
     clientId: clientId ?? "",
@@ -117,21 +113,19 @@ export const loginRequest = {
   // approve/reject), via POST /me/sendMail. Needs one-time admin consent
   // (see SETUP.md), same as the other high-privilege scopes here.
   //
-  // The SharePoint REST scope (spRestScopes.site, below) is DELIBERATELY NOT
-  // included here. A `.default` scope is Azure AD's shorthand for "whatever
-  // this app registration already has configured + consented for this one
-  // resource" — and it can ONLY be requested alone, never combined with
-  // named scopes for a different resource, in a single authorize call. Login
-  // previously requested Graph's named scopes together with
-  // `https://{hostname}/.default` in one call, which Azure AD rejects
-  // outright (AADSTS70011: ".default scope can't be combined with
-  // resource-specific scopes") — breaking sign-in for EVERY user, not
-  // degrading the one feature. Fixed by leaving it out here entirely:
-  // services/siteRoles.ts acquires that token in its own separate call (via
-  // graphClient.ts's getDelegatedToken, same mechanism as every other scope
-  // bucket below), which silently succeeds once a tenant admin has granted
-  // consent for it (see SETUP.md) — no second interactive prompt needed in
-  // practice, since the account already has an active SSO session.
+  // A SharePoint classic REST scope (https://{hostname}/.default) briefly
+  // lived here as part of an attempt to resolve site roles from native
+  // SharePoint Owners/Members group membership. Removed entirely — two
+  // separate problems, not one: (a) a `.default` scope can't be combined
+  // with named scopes for a different resource in one authorize call at
+  // all (AADSTS70011), which broke sign-in for every user outright; (b)
+  // even calling it in its own separate request, SharePoint's classic REST
+  // API (_api/...) doesn't honor a bearer token from an external static
+  // site the way Graph does — it returned an HTML page instead of JSON,
+  // confirmed in production. There's no backend here to proxy that call
+  // through, so it's simply not reachable from this app. Site roles are
+  // resolved purely from the AppRoles SharePoint List now (see
+  // services/siteRoles.ts and SETUP.md's "Role model" section).
   scopes: [
     "openid",
     "profile",
@@ -156,12 +150,4 @@ export const graphScopes = {
   // above for why this needs to be ReadWrite.All specifically, not Manage.All.
   excel: ["Sites.ReadWrite.All", "Sites.Manage.All"],
   mail: ["Mail.Send"],
-};
-
-/** SharePoint classic REST API scope — see the loginRequest comment above.
- *  Empty when VITE_SHAREPOINT_HOSTNAME isn't configured yet (dev-without-env
- *  case), matching this file's existing pattern of warning instead of
- *  throwing at import time when config is missing. */
-export const spRestScopes = {
-  site: SHAREPOINT_HOSTNAME ? [`https://${SHAREPOINT_HOSTNAME}/.default`] : [],
 };

@@ -4,11 +4,9 @@ import { ALLOWED_DOMAIN } from "../../auth/msalConfig";
 import { addAuditEntry } from "../../services/auditLog";
 import {
   listAppRoleOverrides,
-  listNativeSiteGroups,
   removeAppRoleOverride,
   setAppRoleOverride,
   type AppRoleFields,
-  type NativeSiteMember,
 } from "../../services/siteRoles";
 import { AppTopbar } from "../../components/layout/AppTopbar";
 import type { ListItem } from "../../services/lists";
@@ -21,16 +19,17 @@ const ROLE_LABELS: Record<SiteRole, string> = {
 };
 
 /**
- * Lets a Site Owner override any specific person's site-wide role — purely
- * additive on top of native SharePoint Owners/Members group membership (see
- * services/siteRoles.ts and SETUP.md's "Role model" section). Removing an
- * override just reverts that person to whatever their real SharePoint group
- * already gives them; it never changes real SharePoint permissions.
+ * Lets a Site Owner assign any specific person's site-wide role. This is the
+ * ONLY source of truth for roles (see services/siteRoles.ts and SETUP.md's
+ * "Role model" section) — an earlier version also tried deriving a default
+ * from native SharePoint Owners/Members group membership, which turned out
+ * not to be reachable from this app at all (SharePoint's classic REST API
+ * doesn't honor cross-origin bearer-token calls from an external static
+ * site). Someone with no row here is a Member by default.
  */
 export function ManageRolesPage() {
   const { email: myEmail } = useAuth();
   const [overrides, setOverrides] = useState<ListItem<AppRoleFields>[]>([]);
-  const [native, setNative] = useState<{ owners: NativeSiteMember[]; members: NativeSiteMember[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +42,7 @@ export function ManageRolesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [overrideItems, nativeGroups] = await Promise.all([
-        listAppRoleOverrides(),
-        listNativeSiteGroups().catch(() => null), // context-only — don't block the page if this fails
-      ]);
-      setOverrides(overrideItems);
-      setNative(nativeGroups);
+      setOverrides(await listAppRoleOverrides());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -113,9 +107,9 @@ export function ManageRolesPage() {
       <div className="page page--wide">
         <h1>Manage roles</h1>
         <p>
-          This overrides the app's own role model only — it does not change real SharePoint
-          permissions. A change here takes effect for that person the next time they reload or
-          sign back in.
+          This is the app's own role model — it does not change anyone's real SharePoint site
+          permissions. Anyone with no role set here is a Member by default. A change here takes
+          effect for that person the next time they reload or sign back in.
         </p>
 
         {error && <p className="error-text">{error}</p>}
@@ -155,7 +149,7 @@ export function ManageRolesPage() {
           {loading ? (
             <p>Loading…</p>
           ) : overrides.length === 0 ? (
-            <p>No overrides set — everyone's role is derived from their native SharePoint group.</p>
+            <p>No roles set yet — everyone defaults to Member until given a role here.</p>
           ) : (
             <div className="table-scroll">
               <table className="response-grid">
@@ -187,24 +181,6 @@ export function ManageRolesPage() {
             </div>
           )}
         </div>
-
-        {native && (
-          <div className="panel">
-            <h3>Current native SharePoint groups (context only)</h3>
-            <p className="fill-field__help">
-              These are read directly from the site's real Owners/Members groups — not affected
-              by the overrides above, and not editable here.
-            </p>
-            <div className="field-row">
-              <label>Owners</label>
-              <span>{native.owners.length === 0 ? "—" : native.owners.map((o) => o.title).join(", ")}</span>
-            </div>
-            <div className="field-row">
-              <label>Members</label>
-              <span>{native.members.length === 0 ? "—" : native.members.map((m) => m.title).join(", ")}</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

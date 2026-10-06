@@ -25,6 +25,29 @@
   --shadow: 0 4px 16px rgba(20, 20, 40, 0.08);
   --shadow-lg: 0 12px 40px rgba(20, 20, 40, 0.14);
 
+  /* Spacing scale — used by NEW rules only (existing rules keep their
+   *  ad-hoc rem literals untouched, so this diff stays reviewable). */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  /* Graduated elevation tiers — a believable "3D" read needs layered
+   *  shadows, not just a bigger blur: each tier stacks a tight, crisp
+   *  "contact" shadow (close, low-blur — grounds the edge) UNDER a soft,
+   *  wide "ambient" one (far, high-blur — reads as lift/depth). */
+  --elevation-1: 0 1px 2px rgba(20, 20, 40, 0.05), 0 1px 1px rgba(20, 20, 40, 0.04);
+  --elevation-2: 0 1px 2px rgba(20, 20, 40, 0.06), 0 4px 10px rgba(20, 20, 40, 0.08);
+  --elevation-3: 0 2px 4px rgba(20, 20, 40, 0.07), 0 10px 24px rgba(20, 20, 40, 0.12);
+  --elevation-4: 0 4px 8px rgba(20, 20, 40, 0.08), 0 20px 48px rgba(20, 20, 40, 0.16);
+  /* A 1px lit-bevel highlight for raised surfaces, and a matching inset
+   *  shadow for a "pressed" look on :active — both zero-asset CSS tricks. */
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --inset-shadow-sm: inset 0 1px 2px rgba(20, 20, 40, 0.08);
+
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
 }
 
@@ -35,6 +58,16 @@
     --border: #2e2e38;
     --text: #f0f0f5;
     --text-muted: #9a9aab;
+
+    /* Light-mode shadow colors (dark rgba on a light surface) read as mud
+     *  on a dark surface — re-tuned so the new elevation tiers still show
+     *  as distinct depth instead of washing out. */
+    --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.25);
+    --elevation-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.35);
+    --elevation-3: 0 2px 4px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.45);
+    --elevation-4: 0 4px 8px rgba(0, 0, 0, 0.45), 0 20px 48px rgba(0, 0, 0, 0.55);
+    --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --inset-shadow-sm: inset 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -105,7 +138,7 @@ a {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elevation-2);
   padding: 1.75rem;
 }
 
@@ -119,20 +152,24 @@ button {
   background: var(--surface);
   color: var(--text);
   padding: 0.5rem 0.9rem;
-  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+  box-shadow: var(--elevation-1);
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
 }
 
 button:hover:not(:disabled) {
   border-color: var(--accent);
+  box-shadow: var(--elevation-2);
 }
 
 button:active:not(:disabled) {
   transform: translateY(1px);
+  box-shadow: var(--inset-shadow-sm);
 }
 
 button:disabled {
   cursor: default;
   opacity: 0.5;
+  box-shadow: none;
 }
 
 .btn-primary {
@@ -141,16 +178,23 @@ button:disabled {
   color: var(--accent-contrast);
   font-weight: 600;
   padding: 0.6rem 1.4rem;
+  box-shadow: var(--elevation-2), var(--inset-highlight);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+  box-shadow: var(--elevation-3), var(--inset-highlight);
+}
+
+.btn-primary:active:not(:disabled) {
+  box-shadow: var(--inset-shadow-sm);
 }
 
 .btn-ghost {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
 }
 
 .btn-danger {
@@ -158,11 +202,17 @@ button:disabled {
   border-color: var(--danger);
   color: #fff;
   font-weight: 600;
+  box-shadow: var(--elevation-2), var(--inset-highlight);
 }
 
 .btn-danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--danger) 85%, black);
   border-color: color-mix(in srgb, var(--danger) 85%, black);
+  box-shadow: var(--elevation-3), var(--inset-highlight);
+}
+
+.btn-danger:active:not(:disabled) {
+  box-shadow: var(--inset-shadow-sm);
 }
 
 input[type="text"],
@@ -628,7 +678,7 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elevation-3);
   padding: 2rem 2.25rem 1.75rem;
 }
 
@@ -677,12 +727,14 @@ textarea {
 .builder-tabs button {
   border: none;
   border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background: transparent;
-  padding: 0.6rem 0.2rem;
-  margin-right: 1.25rem;
+  box-shadow: none;
+  padding: 0.6rem 0.8rem;
+  margin-right: 0.25rem;
+  margin-bottom: -1px;
   color: var(--text-muted);
-  transition: color 120ms ease, border-color 120ms ease;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 
 .builder-tabs button:hover:not(:disabled):not(.is-active) {
@@ -690,9 +742,13 @@ textarea {
   border-color: transparent;
 }
 
+/* Raised "pill" active state instead of a flat bottom-border — reads as a
+ *  physically depressible tab, not just a color change. */
 .builder-tabs button.is-active {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  background: var(--surface);
+  border-bottom-color: transparent;
+  box-shadow: var(--elevation-1), var(--inset-highlight);
   font-weight: 600;
 }
 
@@ -1292,6 +1348,12 @@ textarea {
   background:
     radial-gradient(circle at top, var(--accent-softer), transparent 60%),
     var(--surface-sunken);
+  /* Lets the mobile-sized runtime rules below respond to THIS element's own
+   *  width (e.g. PreviewModal's 400px-wide mobile bezel) instead of only the
+   *  real browser viewport — see the @container block near the bottom of
+   *  this file for why. */
+  container-type: inline-size;
+  container-name: runtime;
 }
 
 .runtime__container {
@@ -1735,6 +1797,14 @@ textarea {
   color: var(--text);
 }
 
+/* Previously had no rule at all — harmless (it's a plain block div), but
+ *  giving it an explicit min-height keeps the desktop preview from
+ *  collapsing to zero height for an instant while FillRunner's first
+ *  section mounts. */
+.preview-modal__body {
+  min-height: calc(100vh - 2.5rem);
+}
+
 .preview-modal__frame--mobile {
   max-width: 400px;
   margin: 2rem auto;
@@ -1889,7 +1959,7 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--elevation-1);
   padding: 1.25rem;
   text-decoration: none;
   color: var(--text);
@@ -1898,7 +1968,7 @@ textarea {
 
 .form-card:hover {
   border-color: var(--accent);
-  box-shadow: var(--shadow);
+  box-shadow: var(--elevation-3);
   transform: translateY(-2px);
 }
 
@@ -2129,6 +2199,90 @@ textarea {
     max-width: 100%;
   }
 
+  .runtime__container {
+    padding: 1.5rem 0.9rem 3rem;
+  }
+
+  .runtime__cover {
+    max-height: 140px;
+    margin-bottom: -1.75rem;
+  }
+
+  .runtime__card {
+    padding: 1.25rem;
+  }
+
+  .runtime__brand-bar {
+    margin: -1.25rem -1.25rem 1.25rem;
+  }
+
+  .runtime__title {
+    font-size: 1.4rem;
+  }
+
+  .fill-runner__nav {
+    flex-wrap: wrap;
+  }
+
+  .fill-runner__nav button {
+    flex: 1 1 auto;
+  }
+}
+
+/* --- Responsive: tablet (new tier, between desktop and the 720px block
+ *  above) --- */
+@media (max-width: 1024px) {
+  .form-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .builder-sheet {
+    padding: 1.75rem 1.5rem 1.5rem;
+  }
+
+  .page--wide {
+    max-width: 100%;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* --- Responsive: narrow phone (new tier, tighter than the 720px block
+ *  above) --- */
+@media (max-width: 480px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-tabs button {
+    padding: 0.5rem 0.5rem;
+    margin-right: 0.15rem;
+  }
+
+  .app-topbar__nav-link {
+    display: none;
+  }
+
+  .dashboard-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* --- Responsive: runtime container query ---
+ *
+ * PreviewModal's "Mobile" mode is a max-width: 400px wrapper div (see
+ * .preview-modal__frame--mobile below), which does nothing to @media rules
+ * — those respond to the real browser viewport, not a shrunken child
+ * element, so the mobile preview previously showed desktop layout squeezed
+ * into a 400px frame rather than the actual mobile layout. Fixed by giving
+ * .runtime container-type: inline-size (above) and duplicating the
+ * runtime-scoped subset of the @media (max-width: 720px) block above into a
+ * parallel @container rule — this is ADDITIVE, not a replacement: the real
+ * @media block still applies on an actual phone's real viewport; this one
+ * additionally applies inside any narrow CONTAINER (the preview bezel, or
+ * anywhere else .runtime is embedded narrower than the page itself). */
+@container runtime (max-width: 480px) {
   .runtime__container {
     padding: 1.5rem 0.9rem 3rem;
   }

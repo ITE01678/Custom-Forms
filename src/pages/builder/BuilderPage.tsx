@@ -20,6 +20,14 @@ import { AppTopbar } from "../../components/layout/AppTopbar";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
+import type { CSSProperties } from "react";
+
+// Mirrors RuntimeShell.tsx's own DEFAULT_ACCENT/--accent mechanism, applied
+// one level up — the builder's own tabs/buttons (already var(--accent)-based
+// via index.css) pick up the form being edited's theme color live, closing
+// the gap where branding only ever reached the live fill runtime, never the
+// builder chrome itself. Dashboard/admin pages keep the global default.
+const DEFAULT_ACCENT = "#4f46e5";
 
 type Tab = "content" | "branching" | "branding" | "sharing" | "access" | "settings";
 
@@ -152,11 +160,15 @@ export function BuilderPage() {
     }
   }
 
+  const builderAccentStyle: CSSProperties = {
+    "--accent": form.branding.themeColor || DEFAULT_ACCENT,
+  } as CSSProperties;
+
   return (
     <div className="app-shell">
       <AppTopbar backTo={{ to: "/", label: "My forms" }} />
       <div className="page page--wide">
-      <div className="builder-sheet">
+      <div className="builder-sheet" style={builderAccentStyle}>
       <div className="builder-header">
         <input
           className="builder-header__title"

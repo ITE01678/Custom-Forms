@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getUnresolved, getUnresolvedForForm, retryItem, type SyncQueueFields } from "../../services/syncQueue";
 import { getFormById } from "../../services/forms";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { ListItem } from "../../services/lists";
@@ -72,16 +72,14 @@ export function SyncHealthPage() {
 
   if (authorizationLoading) {
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <AppShell backTo={{ to: "/", label: "My forms" }}>
         <div className="page">Loading…</div>
-      </div>
+      </AppShell>
     );
   }
   if (!authorized) {
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <AppShell backTo={{ to: "/", label: "My forms" }}>
         <div className="page page--centered" role="alert">
           <p>
             {formId
@@ -89,20 +87,24 @@ export function SyncHealthPage() {
               : "Only the site owner can view sync health across all forms."}
           </p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+    <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
-      <h1>Sync Health</h1>
-      <p>
-        {formId
-          ? "Responses still pending or failed sync to this form's Excel workbook."
-          : "Responses still pending or failed sync to their Excel workbook, across all forms."}
-      </p>
+      <div className="page-header">
+        <span className="page-header__icon" aria-hidden="true">🩺</span>
+        <div>
+          <h1>Sync Health</h1>
+          <p className="page-header__subtitle">
+            {formId
+              ? "Responses still pending or failed sync to this form's Excel workbook."
+              : "Responses still pending or failed sync to their Excel workbook, across all forms."}
+          </p>
+        </div>
+      </div>
 
       {error && <p className="error-text">{error}</p>}
       {loading ? (
@@ -146,6 +148,6 @@ export function SyncHealthPage() {
         </div>
       )}
       </div>
-    </div>
+    </AppShell>
   );
 }

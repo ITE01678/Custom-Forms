@@ -8,7 +8,7 @@ import {
   setAppRoleOverride,
   type AppRoleFields,
 } from "../../services/siteRoles";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import type { ListItem } from "../../services/lists";
 import type { SiteRole } from "../../formsSchema/types";
 
@@ -102,15 +102,19 @@ export function ManageRolesPage() {
   }
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+    <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
-        <h1>Manage roles</h1>
-        <p>
-          This is the app's own role model — it does not change anyone's real SharePoint site
-          permissions. Anyone with no role set here is a Member by default. A change here takes
-          effect for that person the next time they reload or sign back in.
-        </p>
+        <div className="page-header">
+          <span className="page-header__icon" aria-hidden="true">🔐</span>
+          <div>
+            <h1>Manage roles</h1>
+            <p className="page-header__subtitle">
+              This is the app's own role model — it does not change anyone's real SharePoint site
+              permissions. Anyone with no role set here is a Member by default. A change here takes
+              effect for that person the next time they reload or sign back in.
+            </p>
+          </div>
+        </div>
 
         {error && <p className="error-text">{error}</p>}
 
@@ -182,6 +186,6 @@ export function ManageRolesPage() {
           )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

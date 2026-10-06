@@ -40,6 +40,16 @@ export async function listMyForms(ownerEmail: string): Promise<StoredForm[]> {
   return items.map(toStoredForm);
 }
 
+/** Every form across the whole site, regardless of owner — unlike
+ *  listMyForms, deliberately unfiltered. Callers must gate this on
+ *  site.isSiteOwner themselves (e.g. the profile panel's "site conditions"
+ *  summary) — this function has no opinion on who's allowed to see it. */
+export async function listAllForms(): Promise<StoredForm[]> {
+  await ensureFormsSiteStructure();
+  const items = await queryListItems<FormsListFields>(LIST_NAMES.forms, {});
+  return items.map(toStoredForm);
+}
+
 export async function getFormById(formId: string): Promise<StoredForm | null> {
   await ensureFormsSiteStructure();
   const items = await queryListItems<FormsListFields>(LIST_NAMES.forms, {

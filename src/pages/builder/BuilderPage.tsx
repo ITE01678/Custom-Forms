@@ -16,7 +16,7 @@ import { PreviewModal } from "../../components/builder/PreviewModal";
 import { FormFilesPanel } from "../../components/builder/FormFilesPanel";
 import { RichTextEditor } from "../../components/builder/RichTextEditor";
 import { TextStyleControls } from "../../components/builder/TextStyleControls";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
@@ -94,12 +94,11 @@ export function BuilderPage() {
   if (capabilitiesLoading) return <div className="page">Loading…</div>;
   if (!capabilities?.canView) {
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <AppShell backTo={{ to: "/", label: "My forms" }}>
         <div className="page page--centered" role="alert">
           <p>You don't have access to this form.</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -165,8 +164,7 @@ export function BuilderPage() {
   } as CSSProperties;
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+    <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
       <div className="builder-hero">
         <div className="builder-hero__eyebrow">📝 Form builder</div>
@@ -285,6 +283,6 @@ export function BuilderPage() {
         />
       )}
       </div>
-    </div>
+    </AppShell>
   );
 }

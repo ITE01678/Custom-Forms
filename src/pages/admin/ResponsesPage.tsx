@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getFormById } from "../../services/forms";
 import { getResponsesForForm } from "../../services/responses";
 import type { ResponseRow } from "../../services/excel";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { FormDefinition } from "../../formsSchema/types";
 
@@ -50,24 +50,27 @@ export function ResponsesPage() {
   if (loading || !form || capabilitiesLoading) return <div className="page">Loading…</div>;
   if (!capabilities?.canViewResponses) {
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <AppShell backTo={{ to: "/", label: "My forms" }}>
         <div className="page page--centered" role="alert">
           <p>You don't have access to this form's responses.</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: `/builder/${form.id}`, label: "Builder" }} />
+    <AppShell backTo={{ to: `/builder/${form.id}`, label: "Builder" }}>
       <div className="page page--wide">
-      <p>
-        <Link to="/admin/sync-health">🩺 Sync health</Link>
-      </p>
-      <h1>{form.title} — Responses</h1>
-      <p>{rows.length} response(s)</p>
+      <div className="page-header">
+        <span className="page-header__icon" aria-hidden="true">📊</span>
+        <div>
+          <h1>{form.title}</h1>
+          <p className="page-header__subtitle">{rows.length} response{rows.length === 1 ? "" : "s"}</p>
+        </div>
+        <Link to={`/admin/sync-health?formId=${form.id}`} className="icon-btn" data-tooltip="Sync health for this form">
+          🩺
+        </Link>
+      </div>
 
       {rows.length === 0 ? (
         <p>No responses yet.</p>
@@ -103,6 +106,6 @@ export function ResponsesPage() {
         </div>
       )}
       </div>
-    </div>
+    </AppShell>
   );
 }

@@ -1,16 +1,17 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "../../auth/useAuth";
 import { useSiteCapabilities } from "../../auth/CapabilityProvider";
+import { ProfileMenu } from "./ProfileMenu";
 
 interface Props {
   /** Optional breadcrumb back-link shown next to the brand, e.g. "← My forms". */
   backTo?: { to: string; label: string };
 }
 
-/** Shared top bar for every signed-in page (Dashboard, Builder, admin pages) —
- *  brand + optional back-link on the left, identity + sign-out on the right. */
+/** Shared top bar for every signed-in page — brand/logo (click navigates
+ *  home) + optional back-link on the left, icon shortcuts + profile on the
+ *  right. The same destinations also live in the full-text Sidebar; these
+ *  are quick-access icons with a hover tooltip, not a replacement for it. */
 export function AppTopbar({ backTo }: Props) {
-  const { email, displayName, logout } = useAuth();
   const { capabilities } = useSiteCapabilities();
 
   return (
@@ -27,16 +28,19 @@ export function AppTopbar({ backTo }: Props) {
         )}
       </div>
       <div className="app-topbar__user">
-        <Link to="/my-responses" className="app-topbar__nav-link">
-          My responses
+        <Link to="/my-responses" className="icon-btn" data-tooltip="My responses">
+          🗂️
         </Link>
-        {capabilities.canManageRoles && (
-          <Link to="/admin/roles" className="app-topbar__nav-link">
-            Manage roles
+        {capabilities.canManageRoles ? (
+          <Link to="/admin/roles" className="icon-btn" data-tooltip="Manage roles">
+            🔐
           </Link>
+        ) : (
+          <span className="icon-btn is-disabled" data-tooltip="Manage roles — Owner access required">
+            🔐
+          </span>
         )}
-        <span>{displayName ?? email}</span>
-        <button onClick={() => logout()}>Sign out</button>
+        <ProfileMenu />
       </div>
     </header>
   );

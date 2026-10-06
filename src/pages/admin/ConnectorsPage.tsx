@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import { ConnectorSourcePicker } from "../../components/admin/ConnectorSourcePicker";
 import {
   createConnectorConfig,
@@ -109,16 +109,20 @@ export function ConnectorsPage() {
   }
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+    <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
-      <h1>Data source connectors</h1>
-      <p>
-        Reusable data sources form fields can auto-fill from — Graph directory data, a shared
-        Excel file, a SharePoint List, or (for sources needing a hidden API key) a Power Automate
-        flow. Configure once here, then reference by name from any field's "Auto-fill from a
-        connector" setting in the builder.
-      </p>
+      <div className="page-header">
+        <span className="page-header__icon" aria-hidden="true">🔌</span>
+        <div>
+          <h1>Data source connectors</h1>
+          <p className="page-header__subtitle">
+            Reusable data sources form fields can auto-fill from — Graph directory data, a shared
+            Excel file, a SharePoint List, or (for sources needing a hidden API key) a Power Automate
+            flow. Configure once here, then reference by name from any field's "Auto-fill from a
+            connector" setting in the builder.
+          </p>
+        </div>
+      </div>
 
       <div className="panel">
         <h3>Add a connector</h3>
@@ -199,6 +203,6 @@ export function ConnectorsPage() {
         )}
       </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

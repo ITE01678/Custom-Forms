@@ -4,7 +4,14 @@ import { useAuth } from "../auth/useAuth";
 import { useSiteCapabilities } from "../auth/CapabilityProvider";
 import { createForm, getFormById, listMyForms, type StoredForm } from "../services/forms";
 import { listFormPermissionsForEmail } from "../services/formPermissions";
-import { AppTopbar } from "../components/layout/AppTopbar";
+import { AppShell } from "../components/layout/AppShell";
+import { FormQuickActions } from "../components/common/FormQuickActions";
+
+interface SharedFormRow {
+  form: StoredForm["form"];
+  canViewResponses: boolean;
+  canManageResponses: boolean;
+}
 
 export function Dashboard() {
   const { email, displayName } = useAuth();
@@ -12,7 +19,7 @@ export function Dashboard() {
   const navigate = useNavigate();
 
   const [forms, setForms] = useState<StoredForm[]>([]);
-  const [sharedForms, setSharedForms] = useState<StoredForm[]>([]);
+  const [sharedForms, setSharedForms] = useState<SharedFormRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -30,11 +37,18 @@ export function Dashboard() {
     // own. Best-effort: a failure here shouldn't block the owned-forms grid.
     listFormPermissionsForEmail(email)
       .then(async (grants) => {
-        const uniqueFormIds = [...new Set(grants.map((g) => g.fields.FormId))];
-        const resolved = await Promise.all(uniqueFormIds.map((id) => getFormById(id)));
-        if (!cancelled) {
-          setSharedForms(resolved.filter((s): s is StoredForm => s !== null && s.form.owner.upn.toLowerCase() !== email.toLowerCase()));
-        }
+        const resolved = await Promise.all(
+          grants.map(async (g) => {
+            const stored = await getFormById(g.fields.FormId);
+            if (!stored || stored.form.owner.upn.toLowerCase() === email.toLowerCase()) return null;
+            return {
+              form: stored.form,
+              canViewResponses: !!g.fields.CanViewResponses,
+              canManageResponses: !!g.fields.CanManageResponses,
+            };
+          })
+        );
+        if (!cancelled) setSharedForms(resolved.filter((r): r is SharedFormRow => r !== null));
       })
       .catch(() => {});
 
@@ -58,26 +72,17 @@ export function Dashboard() {
   }
 
   return (
-    <div className="app-shell">
-      <AppTopbar />
-
+    <AppShell>
       <div className="page page--wide">
         <div className="dashboard-toolbar">
-          {siteCapabilities.canCreateForms && (
-            <button className="btn-primary" onClick={handleCreate} disabled={creating}>
-              {creating ? "Creating…" : "+ Create a form"}
-            </button>
-          )}
-          {siteCapabilities.canManageConnectors && (
-            <Link className="toolbar-link" to="/admin/connectors">
-              🔌 Data source connectors
-            </Link>
-          )}
-          {siteCapabilities.canViewTenantSyncHealth && (
-            <Link className="toolbar-link" to="/admin/sync-health">
-              🩺 Sync health
-            </Link>
-          )}
+          <button
+            className="btn-primary"
+            onClick={handleCreate}
+            disabled={creating || !siteCapabilities.canCreateForms}
+            title={!siteCapabilities.canCreateForms ? "Admin or Owner access required" : undefined}
+          >
+            {creating ? "Creating…" : "+ Create a form"}
+          </button>
         </div>
 
         {error && <p className="error-text">{error}</p>}
@@ -108,19 +113,9 @@ export function Dashboard() {
                   <span className="form-card__title">{form.title || "Untitled form"}</span>
                   <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
                 </div>
+                <FormQuickActions form={form} canViewResponses canViewSyncHealth />
                 {form.description && <p className="form-card__description">{form.description}</p>}
                 <p className="form-card__meta">Updated {new Date(form.updatedAt).toLocaleDateString()}</p>
-                {(form.status === "published" || form.status === "archived") && form.latestPublishedVersion && (
-                  <span
-                    className="form-card__responses"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(`/admin/forms/${form.id}/responses`);
-                    }}
-                  >
-                    View responses →
-                  </span>
-                )}
               </Link>
             ))}
           </div>
@@ -130,13 +125,14 @@ export function Dashboard() {
           <>
             <h2 className="dashboard-section-heading">Shared with you</h2>
             <div className="form-grid">
-              {sharedForms.map(({ form }) => (
+              {sharedForms.map(({ form, canViewResponses, canManageResponses }) => (
                 <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
                   <div className="form-card__header">
                     <span className="form-card__icon" aria-hidden="true">📋</span>
                     <span className="form-card__title">{form.title || "Untitled form"}</span>
                     <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
                   </div>
+                  <FormQuickActions form={form} canViewResponses={canViewResponses} canViewSyncHealth={canManageResponses} />
                   {form.description && <p className="form-card__description">{form.description}</p>}
                   <p className="form-card__meta">
                     Owner: {form.owner.displayName ?? form.owner.upn} · Updated{" "}
@@ -148,6 +144,6 @@ export function Dashboard() {
           </>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }

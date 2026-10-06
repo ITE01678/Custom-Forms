@@ -6,7 +6,7 @@ import { getResponseByRowIndex } from "../services/excel";
 import { getIndexEntriesForSubmitter } from "../services/responseIndex";
 import { getRoutingState } from "../services/responseRouting";
 import { canSelfEdit } from "../formsSchema/editAccess";
-import { AppTopbar } from "../components/layout/AppTopbar";
+import { AppShell } from "../components/layout/AppShell";
 import type { FormDefinition, FormResponse, ResponseRoutingState } from "../formsSchema/types";
 
 interface MyResponseRow {
@@ -81,11 +81,15 @@ export function MyResponsesPage() {
   }, [email]);
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+    <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
-        <h1>My responses</h1>
-        <p>Every form you've personally submitted a response to.</p>
+        <div className="page-header">
+          <span className="page-header__icon" aria-hidden="true">🗂️</span>
+          <div>
+            <h1>My responses</h1>
+            <p className="page-header__subtitle">Every form you've personally submitted a response to.</p>
+          </div>
+        </div>
 
         {error && <p className="error-text">{error}</p>}
         {loading ? (
@@ -101,6 +105,7 @@ export function MyResponsesPage() {
             {rows.map(({ form, response, routingStatus, editable }) => (
               <div className="form-card" key={form.id}>
                 <div className="form-card__header">
+                  <span className="form-card__icon" aria-hidden="true">✅</span>
                   <span className="form-card__title">{form.title || "Untitled form"}</span>
                   {routingStatus && (
                     <span className={`status-pill ${routingStatus === "approved" ? "status-pill--published" : ""}`}>
@@ -126,6 +131,6 @@ export function MyResponsesPage() {
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }

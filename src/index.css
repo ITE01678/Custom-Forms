@@ -1936,10 +1936,24 @@ textarea {
   background: var(--surface-sunken);
 }
 
-/* --- App shell / topbar (Dashboard and other top-level app pages) --- */
+/* --- App shell / topbar / sidebar (Dashboard and other top-level app pages) --- */
 
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Below the full-width topbar: sidebar (left) + page content (right). */
+.app-shell__body {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.app-shell__main {
+  flex: 1;
+  min-width: 0;
 }
 
 .app-topbar {
@@ -1990,19 +2004,328 @@ textarea {
 .app-topbar__user {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.app-topbar__nav-link {
-  color: var(--text-muted);
+/* --- Icon button with CSS-only hover tooltip (no JS library) — used by
+ *  the topbar shortcuts, dashboard card quick-actions, and anywhere else a
+ *  compact icon-only control needs a text label on hover/focus. --- */
+
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--elevation-1);
+  font-size: 1.05rem;
+  line-height: 1;
+  color: var(--text);
+  cursor: pointer;
   text-decoration: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 80ms ease;
+}
+
+.icon-btn:hover,
+.icon-btn:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--elevation-2);
+}
+
+.icon-btn:active {
+  transform: translateY(1px);
+}
+
+.icon-btn--sm {
+  width: 1.9rem;
+  height: 1.9rem;
   font-size: 0.9rem;
 }
 
-.app-topbar__nav-link:hover {
+/* Kept visible rather than hidden (a smoother experience — people can see
+ *  a feature exists and why they can't use it yet, see Sidebar.tsx/
+ *  AppTopbar.tsx) — this is a <span>, not a <Link>, so it has nothing to
+ *  disable functionally, just visually. */
+.icon-btn.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.icon-btn.is-disabled:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.icon-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background: var(--text);
+  color: var(--surface);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 30;
+}
+
+.icon-btn[data-tooltip]:hover::after,
+.icon-btn[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* --- Sidebar --- */
+
+.app-sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.25rem 0.9rem;
+  background: var(--brand-gradient);
+  color: #fff;
+  min-height: calc(100vh - 4rem);
+}
+
+.app-sidebar__create {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--brand-lime);
+  color: var(--brand-navy);
+  font-weight: 700;
+  box-shadow: var(--elevation-2), var(--inset-highlight);
+}
+
+.app-sidebar__create:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-lime) 85%, white);
+}
+
+.app-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.app-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.app-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* A <span>, not a <Link> — nothing to navigate, just styled to show the
+ *  destination exists (title attribute explains the required role). */
+.app-sidebar__link.is-disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+}
+
+.app-sidebar__link.is-disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.app-sidebar__lock {
+  margin-left: auto;
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.app-sidebar__link.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--inset-highlight);
+}
+
+.app-sidebar__icon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+.app-sidebar__footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.app-sidebar__role-pill {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* --- Profile menu --- */
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-menu__trigger {
+  background: var(--brand-gradient);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.profile-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-4);
+  padding: 1rem;
+  z-index: 40;
+}
+
+.profile-menu__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.profile-menu__avatar {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-gradient);
+  color: #fff;
+  font-weight: 700;
+}
+
+.profile-menu__name {
+  font-weight: 600;
+}
+
+.profile-menu__email {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.profile-menu__role {
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.profile-menu__stats {
+  border-top: 1px solid var(--border);
+  padding-top: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.profile-menu__stats h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.profile-menu__stats ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}
+
+.profile-menu__signout {
+  width: 100%;
+}
+
+/* Role-tinted status pills, reused by ProfileMenu + the sidebar role pill. */
+.status-pill--owner {
+  background: color-mix(in srgb, var(--brand-lime) 20%, transparent);
+  color: var(--brand-lime-strong);
+  border-color: transparent;
+}
+
+.status-pill--admin {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent-strong);
+  border-color: transparent;
+}
+
+/* --- Page header (icon-badge + title, used across admin/responses pages) --- */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-header__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand-lime) 22%, var(--surface-sunken));
+  font-size: 1.3rem;
+  box-shadow: var(--elevation-1);
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.page-header__subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.form-card__quick-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
 }
 
 /* --- Dashboard --- */
@@ -2228,6 +2551,14 @@ textarea {
 /* --- Responsive --- */
 
 @media (max-width: 720px) {
+  /* Sidebar is desktop-only — narrow screens fall back to the topbar's
+   *  icon shortcuts for the same destinations (Dashboard/Create/Connectors/
+   *  Sync health/My responses/Manage roles), same pattern most admin
+   *  dashboards use rather than adding a hamburger-toggle mechanism. */
+  .app-sidebar {
+    display: none;
+  }
+
   .page,
   .page--wide {
     padding-left: 1rem;
@@ -2393,10 +2724,6 @@ textarea {
   .builder-tabs button {
     padding: 0.5rem 0.5rem;
     margin-right: 0.15rem;
-  }
-
-  .app-topbar__nav-link {
-    display: none;
   }
 
   .dashboard-toolbar {

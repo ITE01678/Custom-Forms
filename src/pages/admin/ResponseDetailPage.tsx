@@ -10,7 +10,7 @@ import { updateResponse } from "../../services/responses";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { formatAnswer } from "../../lib/formatAnswer";
 import { FillRunner } from "../../components/runtime/FillRunner";
-import { AppTopbar } from "../../components/layout/AppTopbar";
+import { AppShell } from "../../components/layout/AppShell";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { AnswerValue, AuditEntry, FormDefinition, FormResponse, ResponseRoutingState } from "../../formsSchema/types";
 
@@ -87,12 +87,11 @@ export function ResponseDetailPage() {
   }
   if (!capabilities?.canViewResponses) {
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+      <AppShell backTo={{ to: "/", label: "My forms" }}>
         <div className="page page--centered" role="alert">
           <p>You don't have access to this response.</p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -118,8 +117,7 @@ export function ResponseDetailPage() {
     }
 
     return (
-      <div className="app-shell">
-        <AppTopbar backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }} />
+      <AppShell backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }}>
         <div className="page page--wide">
         <button onClick={() => setEditing(false)}>← Cancel edit</button>
         <FillRunner
@@ -132,21 +130,25 @@ export function ResponseDetailPage() {
           onSubmit={handleAdminEditSubmit}
         />
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   const fields = flattenFields(pinnedForm);
 
   return (
-    <div className="app-shell">
-      <AppTopbar backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }} />
+    <AppShell backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }}>
       <div className="page page--wide">
-      <h1>{form.title}</h1>
-      <p>
-        Submitted by <strong>{response.respondentUpn}</strong>
-        {response.submittedAt && ` on ${new Date(response.submittedAt).toLocaleString()}`}
-      </p>
+      <div className="page-header">
+        <span className="page-header__icon" aria-hidden="true">📄</span>
+        <div>
+          <h1>{form.title}</h1>
+          <p className="page-header__subtitle">
+            Submitted by <strong>{response.respondentUpn}</strong>
+            {response.submittedAt && ` on ${new Date(response.submittedAt).toLocaleString()}`}
+          </p>
+        </div>
+      </div>
 
       {routingState && form.routing && (
         <p className={`status-pill ${routingState.status === "approved" ? "status-pill--published" : ""}`}>
@@ -212,6 +214,6 @@ export function ResponseDetailPage() {
         )}
       </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

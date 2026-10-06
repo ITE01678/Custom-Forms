@@ -11,6 +11,7 @@ import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { formatAnswer } from "../../lib/formatAnswer";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { AnswerValue, AuditEntry, FormDefinition, FormResponse, ResponseRoutingState } from "../../formsSchema/types";
 
 const ACTION_LABELS: Record<AuditEntry["action"], string> = {
@@ -40,6 +41,7 @@ export function ResponseDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const { loading: capabilitiesLoading, capabilities } = useFormCapabilities(form?.id, form?.owner.upn);
 
   async function load() {
     if (!formId || !responseId) return;
@@ -80,9 +82,23 @@ export function ResponseDetailPage() {
   }, [formId, responseId]);
 
   if (error) return <div className="page">{error}</div>;
-  if (loading || !form || !response || !pinnedForm || rowIndex === null) return <div className="page">Loading…</div>;
+  if (loading || !form || !response || !pinnedForm || rowIndex === null || capabilitiesLoading) {
+    return <div className="page">Loading…</div>;
+  }
+  if (!capabilities?.canViewResponses) {
+    return (
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+        <div className="page page--centered" role="alert">
+          <p>You don't have access to this response.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const canAdminEdit = form.editPolicy.mode === "admin-only" || form.editPolicy.mode === "self-and-admin";
+  const canAdminEdit =
+    capabilities.canManageResponses &&
+    (form.editPolicy.mode === "admin-only" || form.editPolicy.mode === "self-and-admin");
 
   if (editing) {
     const firstSectionId = resolveFirstSectionId(pinnedForm.sections, response.answers);

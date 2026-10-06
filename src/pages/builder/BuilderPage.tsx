@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { archiveForm, deleteForm, getFormById, publishForm, saveDraft } from "../../services/forms";
 import { listConnectorConfigs } from "../../services/connectorConfigs";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
+import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import { SectionEditor } from "../../components/builder/SectionEditor";
 import { BrandingPanel } from "../../components/builder/BrandingPanel";
 import { SharingPanel } from "../../components/builder/SharingPanel";
@@ -70,8 +71,27 @@ export function BuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formId]);
 
+  // Called unconditionally (before the early returns below) per the Rules of
+  // Hooks — the hook itself handles stored being null/not-yet-loaded by
+  // staying in `loading: true` until a real formId/ownerUpn is available.
+  const { loading: capabilitiesLoading, capabilities } = useFormCapabilities(
+    stored?.form.id,
+    stored?.form.owner.upn
+  );
+
   if (loadError) return <div className="page">{loadError}</div>;
   if (!stored) return <div className="page">Loading…</div>;
+  if (capabilitiesLoading) return <div className="page">Loading…</div>;
+  if (!capabilities?.canView) {
+    return (
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+        <div className="page page--centered" role="alert">
+          <p>You don't have access to this form.</p>
+        </div>
+      </div>
+    );
+  }
 
   const { form } = stored;
   const sortedSections = [...form.sections].sort((a, b) => a.order - b.order);
@@ -192,23 +212,35 @@ export function BuilderPage() {
 
       <div className="builder-actions">
         <button onClick={() => setShowPreview(true)}>Preview</button>
-        <button onClick={handleSaveDraft} disabled={isSaving || !isDirty}>
+        <button onClick={handleSaveDraft} disabled={isSaving || !isDirty || !capabilities.canEditForm}>
           {isSaving ? "Saving…" : "Save draft"}
         </button>
-        <button className="btn-primary" onClick={handlePublish} disabled={isPublishing || sortedSections.length === 0}>
+        <button
+          className="btn-primary"
+          onClick={handlePublish}
+          disabled={isPublishing || sortedSections.length === 0 || !capabilities.canEditForm}
+        >
           {isPublishing ? "Publishing…" : "Publish"}
         </button>
         {saveError && <span className="error-text">{saveError}</span>}
         <div className="builder-actions__spacer" />
         {form.status !== "archived" && (
-          <button onClick={handleArchive} disabled={isArchiving}>
+          <button onClick={handleArchive} disabled={isArchiving || !capabilities.canArchiveForm}>
             {isArchiving ? "Archiving…" : "Archive"}
           </button>
         )}
-        <button className="btn-danger" onClick={() => setShowDeleteConfirm(true)} disabled={isDeleting}>
+        <button
+          className="btn-danger"
+          onClick={() => setShowDeleteConfirm(true)}
+          disabled={isDeleting || !capabilities.canDeleteForm}
+          title={!capabilities.canDeleteForm ? "Only the site owner or this form's owner can delete it" : undefined}
+        >
           Delete
         </button>
       </div>
+      {!capabilities.canEditForm && (
+        <p className="error-text">You have view-only access to this form — ask the owner for edit access to make changes.</p>
+      )}
 
       <p className="builder-owner">Owner: {form.owner.upn}</p>
 

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { AuthGate } from "./auth/AuthGate";
 import { useAuth } from "./auth/useAuth";
+import { useSiteCapabilities } from "./auth/CapabilityProvider";
+import type { SiteCapabilities } from "./formsSchema/capabilities";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { BuilderPage } from "./pages/builder/BuilderPage";
@@ -29,6 +31,38 @@ function LandingOrAuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Login />;
   return <AuthGate>{children}</AuthGate>;
+}
+
+type SiteCapabilityKey = {
+  [K in keyof SiteCapabilities]: SiteCapabilities[K] extends boolean ? K : never;
+}[keyof SiteCapabilities];
+
+/** Gates a route on a SITE-WIDE capability (e.g. canManageConnectors,
+ *  canManageRoles) — for anything gated on a specific FORM's capabilities
+ *  instead (builder, responses pages), the check has to happen inside the
+ *  page itself once the form has loaded, same as AuthGate's own reasoning
+ *  for not knowing about individual forms. Wraps AuthGate so signed-out
+ *  visitors still go through the normal sign-in flow first. */
+function RequireSiteCapability({ capability, children }: { capability: SiteCapabilityKey; children: ReactNode }) {
+  return (
+    <AuthGate>
+      <CapabilityGate capability={capability}>{children}</CapabilityGate>
+    </AuthGate>
+  );
+}
+
+function CapabilityGate({ capability, children }: { capability: SiteCapabilityKey; children: ReactNode }) {
+  const { loading, capabilities } = useSiteCapabilities();
+  if (loading) return <div className="page">Loading…</div>;
+  if (!capabilities[capability]) {
+    return (
+      <div className="page page--centered" role="alert">
+        <p>You don't have access to this page.</p>
+        <Link to="/">← My forms</Link>
+      </div>
+    );
+  }
+  return <>{children}</>;
 }
 
 /**
@@ -111,9 +145,9 @@ export function AppRouter() {
         <Route
           path="/admin/connectors"
           element={
-            <AuthGate>
+            <RequireSiteCapability capability="canManageConnectors">
               <ConnectorsPage />
-            </AuthGate>
+            </RequireSiteCapability>
           }
         />
 

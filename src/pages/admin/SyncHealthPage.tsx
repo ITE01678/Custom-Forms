@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getUnresolved, getUnresolvedForForm, retryItem, type SyncQueueFields } from "../../services/syncQueue";
+import { getFormById } from "../../services/forms";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { useSiteCapabilities } from "../../auth/CapabilityProvider";
+import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { ListItem } from "../../services/lists";
 
 /**
@@ -19,11 +22,26 @@ export function SyncHealthPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [formOwnerUpn, setFormOwnerUpn] = useState<string | undefined>(undefined);
+
+  const { loading: siteLoading, capabilities: site } = useSiteCapabilities();
+  // Only meaningfully used in the per-form (?formId=) case — resolves to
+  // "loading forever" (safe default: not authorized) when formId is absent,
+  // since the tenant-wide view below is gated on site.canViewTenantSyncHealth
+  // instead, not on this.
+  const { loading: formCapabilitiesLoading, capabilities: formCapabilities } = useFormCapabilities(
+    formId ?? undefined,
+    formOwnerUpn
+  );
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
+      if (formId) {
+        const stored = await getFormById(formId);
+        setFormOwnerUpn(stored?.form.owner.upn);
+      }
       setItems(await (formId ? getUnresolvedForForm(formId) : getUnresolved()));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -37,6 +55,9 @@ export function SyncHealthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formId]);
 
+  const authorized = formId ? !!formCapabilities?.canManageResponses : site.canViewTenantSyncHealth;
+  const authorizationLoading = formId ? formCapabilitiesLoading || !formOwnerUpn : siteLoading;
+
   async function handleRetry(item: ListItem<SyncQueueFields>) {
     setRetrying(item.id);
     try {
@@ -47,6 +68,29 @@ export function SyncHealthPage() {
     } finally {
       setRetrying(null);
     }
+  }
+
+  if (authorizationLoading) {
+    return (
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+        <div className="page">Loading…</div>
+      </div>
+    );
+  }
+  if (!authorized) {
+    return (
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+        <div className="page page--centered" role="alert">
+          <p>
+            {formId
+              ? "You don't have access to this form's sync health."
+              : "Only the site owner can view sync health across all forms."}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

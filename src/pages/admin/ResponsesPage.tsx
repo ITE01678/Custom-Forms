@@ -4,6 +4,7 @@ import { getFormById } from "../../services/forms";
 import { getResponsesForForm } from "../../services/responses";
 import type { ResponseRow } from "../../services/excel";
 import { AppTopbar } from "../../components/layout/AppTopbar";
+import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { FormDefinition } from "../../formsSchema/types";
 
 export function ResponsesPage() {
@@ -13,6 +14,7 @@ export function ResponsesPage() {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { loading: capabilitiesLoading, capabilities } = useFormCapabilities(form?.id, form?.owner.upn);
 
   useEffect(() => {
     if (!formId) return;
@@ -45,7 +47,17 @@ export function ResponsesPage() {
   }, [formId]);
 
   if (error) return <div className="page">{error}</div>;
-  if (loading || !form) return <div className="page">Loading…</div>;
+  if (loading || !form || capabilitiesLoading) return <div className="page">Loading…</div>;
+  if (!capabilities?.canViewResponses) {
+    return (
+      <div className="app-shell">
+        <AppTopbar backTo={{ to: "/", label: "My forms" }} />
+        <div className="page page--centered" role="alert">
+          <p>You don't have access to this form's responses.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">

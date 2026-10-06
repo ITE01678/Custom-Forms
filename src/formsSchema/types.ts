@@ -283,6 +283,53 @@ export interface SharingConfig {
   linkExpiresAt?: string;
 }
 
+/** Site-wide capability tier — resolved by services/siteRoles.ts from a hybrid
+ *  of real SharePoint group membership (Owners/Members) and an app-managed
+ *  override (the AppRoles List). Native SharePoint has no third tier, so
+ *  "admin" can only ever come from an AppRoles override — see siteRoles.ts
+ *  and formsSchema/capabilities.ts for exactly how these compose, and
+ *  SETUP.md for the role model write-up. */
+export type SiteRole = "owner" | "admin" | "member";
+
+/** One explicit grant of access to a form, beyond the immutable `owner`.
+ *  Lives in the FormPermissions SharePoint List (services/formPermissions.ts),
+ *  NOT inside FormDefinition/DraftSchemaJson — access has to be instantly
+ *  queryable across ALL forms by email alone (same shape OwnerEmail already
+ *  gives listMyForms), which a JSON blob can't be $filter-ed on, and granting/
+ *  revoking access must be an instant List write independent of the
+ *  draft/publish cycle (an owner shouldn't have to re-save/re-publish a form
+ *  just to add a collaborator). See formsSchema/capabilities.ts for how this
+ *  combines with SiteRole into one FormCapabilities result. */
+export interface FormCollaborator {
+  email: string; // lowercased UPN — same identity convention as owner.upn everywhere else
+  displayName?: string;
+  /** Named bundles cover the common cases; "custom" means the four Can* flags
+   *  were set individually rather than from a preset — the bundle->flags
+   *  mapping lives in code (formsSchema/capabilities.ts), not in stored data,
+   *  so changing a bundle's definition later doesn't need a data migration. */
+  roleBundle: "co-owner" | "editor" | "viewer" | "custom";
+  canEditForm: boolean;
+  canViewResponses: boolean;
+  canManageResponses: boolean; // edit/delete others' responses, retry this form's sync issues
+  canManageAccess: boolean; // add/remove other collaborators — default true only for co-owner
+  addedBy: string;
+  addedAt: string;
+}
+
+/** One override of a user's SITE-WIDE role, independent of any single form —
+ *  lives in the AppRoles SharePoint List (services/siteRoles.ts). Absence of
+ *  a row for an email means "derive the role from native SharePoint group
+ *  membership instead" (see siteRoles.ts) — this is purely additive over the
+ *  pre-existing owner-only model: every real SharePoint owner/member keeps
+ *  working exactly as before with zero setup. */
+export interface AppRoleOverride {
+  email: string; // lowercased UPN, unique key
+  role: SiteRole;
+  setBy: string;
+  setAt: string;
+  note?: string;
+}
+
 /** One row of a resolved connector-autofill repeatingTable, snapshotted at
  *  submit time so later HR-data changes don't retroactively alter history. */
 export interface RepeatingTableValue {
@@ -300,11 +347,30 @@ export interface FileAttachment {
 
 export type AnswerValue = string | number | boolean | string[] | null | RepeatingTableValue | FileAttachment[];
 
+/** Extended additively — "grant-access"/"revoke-access" are FormPermissions
+ *  changes (formId set, responseId: ""); "role-override-set"/
+ *  "role-override-removed" are AppRoles changes (formId: "", responseId: ""
+ *  — not form-scoped at all). Safe because getEntriesForResponse's filter is
+ *  an exact match on BOTH fields, so a blank value can never leak into a
+ *  real response's audit trail. */
+export type AuditAction =
+  | "submit"
+  | "self-edit"
+  | "admin-edit"
+  | "approver-edit"
+  | "route"
+  | "approve"
+  | "reject"
+  | "grant-access"
+  | "revoke-access"
+  | "role-override-set"
+  | "role-override-removed";
+
 export interface AuditEntry {
   id: string;
   at: string;
   byUpn: string;
-  action: "submit" | "self-edit" | "admin-edit" | "approver-edit" | "route" | "approve" | "reject";
+  action: AuditAction;
   changedFields: { fieldId: string; oldValue: unknown; newValue: unknown }[];
   reason?: string;
 }

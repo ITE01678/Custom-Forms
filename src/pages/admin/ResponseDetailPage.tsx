@@ -21,6 +21,10 @@ const ACTION_LABELS: Record<AuditEntry["action"], string> = {
   route: "Sent for approval",
   approve: "Approved",
   reject: "Rejected",
+  "grant-access": "Granted form access",
+  "revoke-access": "Revoked form access",
+  "role-override-set": "Site role override set",
+  "role-override-removed": "Site role override removed",
 };
 
 export function ResponseDetailPage() {

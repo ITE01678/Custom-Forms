@@ -15,6 +15,12 @@ interface ColumnDef {
   name: string;
   text?: { allowMultipleLines?: boolean };
   number?: Record<string, never>;
+  /** Graph "boolean" columnDefinition facet (Yes/No column) — used for
+   *  FormPermissions' Can* flags. If a tenant ever rejects {"boolean":{}} on
+   *  list-column creation (unconfirmed against a live tenant as of writing),
+   *  switch these four columns to `number: {}` storing 0/1 instead — same
+   *  semantics, just coerce in formPermissions.ts's field mapping. */
+  boolean?: Record<string, never>;
 }
 
 let ensured = false;
@@ -140,6 +146,37 @@ const RESPONSE_ROUTING_COLUMNS: ColumnDef[] = [
   { name: "UpdatedAt", text: {} },
 ];
 
+/** One row per (FormId, Email) collaborator grant — the per-form
+ *  access-control module (services/formPermissions.ts). A dedicated List,
+ *  not a DraftSchemaJson field, specifically so "which forms am I on"
+ *  answers in one $filter-by-Email query (same shape ResponseIndex already
+ *  gives for "which forms have I submitted to") and so granting/revoking
+ *  access never touches the draft/publish cycle. */
+const FORM_PERMISSIONS_COLUMNS: ColumnDef[] = [
+  { name: "FormId", text: {} },
+  { name: "Email", text: {} },
+  { name: "DisplayName", text: {} },
+  { name: "RoleBundle", text: {} },
+  { name: "CanEditForm", boolean: {} },
+  { name: "CanViewResponses", boolean: {} },
+  { name: "CanManageResponses", boolean: {} },
+  { name: "CanManageAccess", boolean: {} },
+  { name: "AddedBy", text: {} },
+  { name: "AddedAt", text: {} },
+];
+
+/** One row per email with a site-wide role override (services/siteRoles.ts).
+ *  Absence of a row means "derive the role from native SharePoint Owners/
+ *  Members group membership instead" — purely additive, never required for
+ *  the app's pre-existing owner-only model to keep working. */
+const APP_ROLES_COLUMNS: ColumnDef[] = [
+  { name: "Email", text: {} },
+  { name: "Role", text: {} },
+  { name: "SetBy", text: {} },
+  { name: "SetAt", text: {} },
+  { name: "Note", text: { allowMultipleLines: true } },
+];
+
 export const LIST_NAMES = {
   forms: "Forms",
   syncQueue: "SyncQueue",
@@ -148,6 +185,8 @@ export const LIST_NAMES = {
   connectorConfigs: "ConnectorConfigs",
   drafts: "Drafts",
   responseRouting: "ResponseRouting",
+  formPermissions: "FormPermissions",
+  appRoles: "AppRoles",
 } as const;
 
 export const LIBRARY_NAMES = {
@@ -156,9 +195,9 @@ export const LIBRARY_NAMES = {
   attachments: "Attachments",
 } as const;
 
-/** Ensures the site structure this app needs exists. FormPermissions is
- *  deferred until per-form sharing/collaboration needs it beyond the
- *  owner-only model used so far. */
+/** Ensures the site structure this app needs exists, including FormPermissions
+ *  (per-form collaborator grants) and AppRoles (site-wide role overrides) —
+ *  both additive to the pre-existing owner-only model, not a replacement. */
 export async function ensureFormsSiteStructure(): Promise<void> {
   if (ensured) return;
   // Concurrent cold-load callers (several parts of the app call this
@@ -182,6 +221,8 @@ export async function ensureFormsSiteStructure(): Promise<void> {
       ensureList(siteId, LIST_NAMES.connectorConfigs, CONNECTOR_CONFIGS_COLUMNS),
       ensureList(siteId, LIST_NAMES.drafts, DRAFTS_COLUMNS),
       ensureList(siteId, LIST_NAMES.responseRouting, RESPONSE_ROUTING_COLUMNS),
+      ensureList(siteId, LIST_NAMES.formPermissions, FORM_PERMISSIONS_COLUMNS),
+      ensureList(siteId, LIST_NAMES.appRoles, APP_ROLES_COLUMNS),
       ensureLibrary(siteId, LIBRARY_NAMES.responseWorkbooks),
       ensureLibrary(siteId, LIBRARY_NAMES.formVersions),
       ensureLibrary(siteId, LIBRARY_NAMES.attachments),

@@ -40,6 +40,18 @@ export async function getIndexBySubmitter(
   return items[0] ?? null;
 }
 
+/** Every response this email has ever submitted, across ALL forms — the
+ *  cross-form query My Responses is built on. Safe to query by
+ *  SubmitterEmail alone with no FormId filter: upsertIndex's own dedup
+ *  invariant guarantees exactly one row per (FormId, SubmitterEmail), so
+ *  this returns exactly one entry per form that submitter has responded to,
+ *  never duplicates. */
+export async function getIndexEntriesForSubmitter(submitterEmail: string): Promise<ListItem<ResponseIndexFields>[]> {
+  return queryListItems<ResponseIndexFields>(LIST_NAMES.responseIndex, {
+    filter: `fields/SubmitterEmail eq '${odataQuote(submitterEmail)}'`,
+  });
+}
+
 export async function upsertIndex(params: {
   formId: string;
   responseId: string;

@@ -7,6 +7,7 @@ import { getRoutingState } from "../../services/responseRouting";
 import { getDraft, saveDraft, deleteDraft } from "../../services/drafts";
 import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { initialSectionAccess } from "../../formsSchema/routingAccess";
+import { canSelfEdit } from "../../formsSchema/editAccess";
 import type { AnswerValue, FormDefinition, FormResponse } from "../../formsSchema/types";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { ReadOnlySummary } from "../../components/runtime/ReadOnlySummary";
@@ -21,14 +22,6 @@ type Gate =
   | { mode: "create"; form: FormDefinition; draftAnswers?: Record<string, AnswerValue>; draftSectionIds?: string[] }
   | { mode: "edit"; form: FormDefinition; response: FormResponse; rowIndex: number }
   | { mode: "readonly"; form: FormDefinition; response: FormResponse };
-
-function isWithinEditWindow(response: FormResponse, form: FormDefinition): boolean {
-  const window = form.editPolicy.selfEditWindow;
-  if (!window || window.type === "unlimited") return true;
-  if (!response.submittedAt || !window.days) return true;
-  const deadline = new Date(response.submittedAt).getTime() + window.days * 24 * 60 * 60 * 1000;
-  return Date.now() <= deadline;
-}
 
 function accessWindowGate(form: FormDefinition): "not-open" | "closed" | null {
   const now = Date.now();
@@ -102,9 +95,6 @@ export function FillPage() {
             ? latest
             : (await getFormVersion(latest.id, existing.response.formVersion)) ?? latest;
 
-        const { mode } = latest.editPolicy;
-        const selfCanEdit = mode === "self-edit" || mode === "self-and-admin";
-
         // Once a response has entered an approval chain — awaiting a
         // decision, or already decided — self-edit must not silently bypass
         // it: the approver's page only re-reads the response when they open
@@ -125,7 +115,7 @@ export function FillPage() {
         const routingEntry = await getRoutingState(latest.id, existing.response.id);
         if (cancelled) return;
 
-        const editable = selfCanEdit && !routingEntry && isWithinEditWindow(existing.response, latest);
+        const editable = canSelfEdit({ form: latest, response: existing.response, hasActiveRouting: !!routingEntry });
 
         if (editable) {
           setGate({ mode: "edit", form: pinned, response: existing.response, rowIndex: existing.rowIndex });

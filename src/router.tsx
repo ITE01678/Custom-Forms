@@ -6,6 +6,7 @@ import { useSiteCapabilities } from "./auth/CapabilityProvider";
 import type { SiteCapabilities } from "./formsSchema/capabilities";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
+import { MyResponsesPage } from "./pages/MyResponsesPage";
 import { BuilderPage } from "./pages/builder/BuilderPage";
 import { FillPage } from "./pages/fill/FillPage";
 import { SubmittedPage } from "./pages/fill/SubmittedPage";
@@ -92,6 +93,14 @@ export function AppRouter() {
           element={
             <AuthGate>
               <BuilderPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/my-responses"
+          element={
+            <AuthGate>
+              <MyResponsesPage />
             </AuthGate>
           }
         />

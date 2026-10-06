@@ -104,6 +104,7 @@ export function Dashboard() {
             {forms.map(({ form }) => (
               <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
                 <div className="form-card__header">
+                  <span className="form-card__icon" aria-hidden="true">📋</span>
                   <span className="form-card__title">{form.title || "Untitled form"}</span>
                   <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
                 </div>
@@ -132,6 +133,7 @@ export function Dashboard() {
               {sharedForms.map(({ form }) => (
                 <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
                   <div className="form-card__header">
+                    <span className="form-card__icon" aria-hidden="true">📋</span>
                     <span className="form-card__title">{form.title || "Untitled form"}</span>
                     <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
                   </div>

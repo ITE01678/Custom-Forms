@@ -67,6 +67,11 @@ export function Login() {
   return (
     <div className="landing">
       <div className="landing__hero">
+        <img
+          src={`${import.meta.env.BASE_URL}jupiter-logo.png`}
+          alt="Jupiter"
+          className="landing__logo"
+        />
         <span className="landing__badge">For Microsoft 365 organizations</span>
         <h1 className="landing__title">Custom Forms</h1>
         <p className="landing__tagline">

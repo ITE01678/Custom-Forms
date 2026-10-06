@@ -31,13 +31,13 @@ const DEFAULT_ACCENT = "#4f46e5";
 
 type Tab = "content" | "branching" | "branding" | "sharing" | "access" | "settings";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "content", label: "Content" },
-  { id: "branching", label: "Branching" },
-  { id: "branding", label: "Branding" },
-  { id: "sharing", label: "Sharing" },
-  { id: "access", label: "Access" },
-  { id: "settings", label: "Settings" },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "content", label: "Content", icon: "📝" },
+  { id: "branching", label: "Branching", icon: "🔀" },
+  { id: "branding", label: "Branding", icon: "🎨" },
+  { id: "sharing", label: "Sharing", icon: "🔗" },
+  { id: "access", label: "Access", icon: "🔐" },
+  { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
 export function BuilderPage() {
@@ -168,20 +168,27 @@ export function BuilderPage() {
     <div className="app-shell">
       <AppTopbar backTo={{ to: "/", label: "My forms" }} />
       <div className="page page--wide">
-      <div className="builder-sheet" style={builderAccentStyle}>
-      <div className="builder-header">
-        <input
-          className="builder-header__title"
-          style={textStyleToCss(form.titleStyle)}
-          value={form.title}
-          onChange={(e) => updateForm({ title: e.target.value })}
-        />
-        <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
+      <div className="builder-hero">
+        <div className="builder-hero__eyebrow">📝 Form builder</div>
+        <div className="builder-hero__row">
+          <input
+            className="builder-hero__title"
+            style={textStyleToCss(form.titleStyle)}
+            value={form.title}
+            onChange={(e) => updateForm({ title: e.target.value })}
+          />
+          <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
+        </div>
+        <p className="builder-hero__meta">
+          Owner: {form.owner.displayName ?? form.owner.upn} · Last updated{" "}
+          {new Date(form.updatedAt).toLocaleDateString()}
+        </p>
       </div>
-
+      <div className="builder-sheet" style={builderAccentStyle}>
       <div className="builder-tabs">
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? "is-active" : ""} onClick={() => setTab(t.id)}>
+            <span className="builder-tabs__icon" aria-hidden="true">{t.icon}</span>
             {t.label}
           </button>
         ))}
@@ -256,8 +263,6 @@ export function BuilderPage() {
       {!capabilities.canEditForm && (
         <p className="error-text">You have view-only access to this form — ask the owner for edit access to make changes.</p>
       )}
-
-      <p className="builder-owner">Owner: {form.owner.upn}</p>
 
       <FormFilesPanel form={form} />
       </div>

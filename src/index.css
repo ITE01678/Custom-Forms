@@ -48,6 +48,18 @@
   --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
   --inset-shadow-sm: inset 0 1px 2px rgba(20, 20, 40, 0.08);
 
+  /* Jupiter brand identity — the app's OWN chrome (topbar, builder hero,
+   *  landing page), distinct from --accent (a per-FORM theme color a
+   *  designer picks in Branding, which still works exactly as before).
+   *  Fixed, not re-tuned for dark mode: these are always used as a dark
+   *  banner with light text/content on top, same contrast either way. */
+  --brand-navy: #0c2a52;
+  --brand-navy-light: #1a4a85;
+  --brand-teal: #1c5c52;
+  --brand-lime: #b7d433;
+  --brand-lime-strong: #96ad2a;
+  --brand-gradient: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-light) 55%, var(--brand-teal) 100%);
+
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
 }
 
@@ -83,6 +95,19 @@ body {
   margin: 0;
   background: var(--surface-sunken);
   color: var(--text);
+}
+
+/* The decorative Jupiter background sits on a wrapper DIV (App.tsx), not
+ *  directly on `body` — it needs a JS-resolved url() to account for this
+ *  app's deploy-time base path (see App.tsx's comment), so the actual
+ *  url(...) comes in as the --app-bg-url custom property. --surface-sunken
+ *  as the second (bottom) layer is the fallback if the image fails to load.
+ *  `.runtime` (the live fill-out pages) already paints its own opaque
+ *  background on top of this everywhere it's rendered, so a respondent's
+ *  own form branding is never affected by this. */
+.app-root-bg {
+  min-height: 100vh;
+  background: var(--app-bg-url) no-repeat center/cover fixed, var(--surface-sunken);
 }
 
 :focus-visible {
@@ -325,9 +350,16 @@ textarea {
 
 .landing {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, var(--accent-softer), transparent 55%),
-    var(--surface-sunken);
+  /* No opaque fallback layer here (unlike most other full-page
+   *  backgrounds) — deliberately transparent beyond the accent radial, so
+   *  the Jupiter background on .app-root-bg (App.tsx) shows through. */
+  background: radial-gradient(circle at top, var(--accent-softer), transparent 55%);
+}
+
+.landing__logo {
+  height: 48px;
+  width: auto;
+  margin-bottom: 1.5rem;
 }
 
 .landing__hero {
@@ -674,57 +706,122 @@ textarea {
 
 /* --- Builder --- */
 
+/* Gradient "hero" banner above the builder card — the app's own fixed
+ *  Jupiter brand identity (NOT the per-form --accent below, which still
+ *  only affects the white card's own tabs/buttons, same as before). */
+.builder-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--brand-gradient);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  padding: 1.75rem 2rem;
+  margin-bottom: 1.25rem;
+  color: #fff;
+}
+
+/* A soft, angled diamond echoing the logo's own motif — decorative only. */
+.builder-hero::after {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 200px;
+  height: 200px;
+  background: var(--brand-lime);
+  opacity: 0.14;
+  border-radius: 28px;
+  transform: rotate(24deg);
+  pointer-events: none;
+}
+
+.builder-hero__eyebrow {
+  position: relative;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-lime);
+  margin-bottom: 0.6rem;
+}
+
+.builder-hero__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.builder-hero__title {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: #fff;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.builder-hero__title::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.builder-hero__title:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.builder-hero__title:focus {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.builder-hero__meta {
+  position: relative;
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.builder-hero .status-pill {
+  position: relative;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.builder-hero .status-pill--published {
+  background: color-mix(in srgb, var(--brand-lime) 30%, transparent);
+  color: var(--brand-lime);
+  border-color: color-mix(in srgb, var(--brand-lime) 45%, transparent);
+}
+
 .builder-sheet {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
-  padding: 2rem 2.25rem 1.75rem;
-}
-
-.builder-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.builder-header__title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  flex: 1;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  transition: border-color 120ms ease, background 120ms ease;
-}
-
-.builder-header__title:hover {
-  border-color: var(--border);
-  background: var(--surface-sunken);
-}
-
-.builder-header__title:focus {
-  border-color: var(--accent);
-  background: var(--surface-sunken);
-}
-
-.builder-header__description {
-  width: 100%;
-  min-height: 3rem;
-  margin-bottom: 1.5rem;
-  padding: 0.5rem;
+  padding: 1.75rem 2.25rem 1.75rem;
 }
 
 .builder-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--border);
 }
 
 .builder-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border: none;
   border-bottom: 2px solid transparent;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
@@ -735,6 +832,11 @@ textarea {
   margin-bottom: -1px;
   color: var(--text-muted);
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.builder-tabs__icon {
+  font-size: 0.95em;
+  line-height: 1;
 }
 
 .builder-tabs button:hover:not(:disabled):not(.is-active) {
@@ -998,11 +1100,6 @@ textarea {
 .builder-share__qr img {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-}
-
-.builder-owner {
-  color: var(--text-muted);
-  font-size: 0.85rem;
 }
 
 .builder-add-section {
@@ -1852,9 +1949,10 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.5rem;
+  padding: 0.75rem 1.5rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--elevation-1);
 }
 
 .app-topbar__left {
@@ -1864,10 +1962,19 @@ textarea {
 }
 
 .app-topbar__brand {
-  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--text);
   text-decoration: none;
+}
+
+.app-topbar__logo {
+  height: 34px;
+  width: auto;
+  display: block;
 }
 
 .app-topbar__back {
@@ -1975,14 +2082,30 @@ textarea {
 .form-card__header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.6rem;
   margin-bottom: 0.5rem;
 }
 
+/* Icon-badge treatment (a soft-tinted rounded square behind an emoji) —
+ *  echoes the Jupiter Central reference's app-tile style. */
+.form-card__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--brand-lime) 22%, var(--surface-sunken));
+  font-size: 1.1rem;
+}
+
 .form-card__title {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   font-size: 1.05rem;
+  padding-top: 0.25rem;
 }
 
 .form-card__description {
@@ -2119,6 +2242,19 @@ textarea {
   .builder-sheet {
     padding: 1.25rem 1rem 1.25rem;
     border-radius: var(--radius);
+  }
+
+  .builder-hero {
+    padding: 1.25rem 1.25rem;
+    border-radius: var(--radius);
+  }
+
+  .builder-hero__row {
+    flex-wrap: wrap;
+  }
+
+  .builder-hero__title {
+    font-size: 1.4rem;
   }
 
   .app-topbar {

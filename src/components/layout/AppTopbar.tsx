@@ -17,7 +17,8 @@ export function AppTopbar({ backTo }: Props) {
     <header className="app-topbar">
       <div className="app-topbar__left">
         <Link to="/" className="app-topbar__brand">
-          Custom Forms
+          <img src={`${import.meta.env.BASE_URL}jupiter-logo.png`} alt="Jupiter" className="app-topbar__logo" />
+          <span>Custom Forms</span>
         </Link>
         {backTo && (
           <Link to={backTo.to} className="app-topbar__back">

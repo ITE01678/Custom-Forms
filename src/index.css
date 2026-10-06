@@ -1818,6 +1818,16 @@ textarea {
   color: var(--text-muted);
 }
 
+.app-topbar__nav-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.app-topbar__nav-link:hover {
+  color: var(--accent-strong);
+}
+
 /* --- Dashboard --- */
 
 .dashboard-section-heading {

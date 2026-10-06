@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
+import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 
 interface Props {
   /** Optional breadcrumb back-link shown next to the brand, e.g. "← My forms". */
@@ -10,6 +11,7 @@ interface Props {
  *  brand + optional back-link on the left, identity + sign-out on the right. */
 export function AppTopbar({ backTo }: Props) {
   const { email, displayName, logout } = useAuth();
+  const { capabilities } = useSiteCapabilities();
 
   return (
     <header className="app-topbar">
@@ -24,6 +26,14 @@ export function AppTopbar({ backTo }: Props) {
         )}
       </div>
       <div className="app-topbar__user">
+        <Link to="/my-responses" className="app-topbar__nav-link">
+          My responses
+        </Link>
+        {capabilities.canManageRoles && (
+          <Link to="/admin/roles" className="app-topbar__nav-link">
+            Manage roles
+          </Link>
+        )}
         <span>{displayName ?? email}</span>
         <button onClick={() => logout()}>Sign out</button>
       </div>

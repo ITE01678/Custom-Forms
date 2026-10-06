@@ -14,6 +14,7 @@ import { ResponsesPage } from "./pages/admin/ResponsesPage";
 import { ResponseDetailPage } from "./pages/admin/ResponseDetailPage";
 import { SyncHealthPage } from "./pages/admin/SyncHealthPage";
 import { ConnectorsPage } from "./pages/admin/ConnectorsPage";
+import { ManageRolesPage } from "./pages/admin/ManageRolesPage";
 
 /**
  * Shows the marketing/landing page (Login) to a signed-out visitor instead
@@ -147,6 +148,14 @@ export function AppRouter() {
           element={
             <RequireSiteCapability capability="canManageConnectors">
               <ConnectorsPage />
+            </RequireSiteCapability>
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            <RequireSiteCapability capability="canManageRoles">
+              <ManageRolesPage />
             </RequireSiteCapability>
           }
         />

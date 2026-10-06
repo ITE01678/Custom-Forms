@@ -9,6 +9,7 @@ import { BrandingPanel } from "../../components/builder/BrandingPanel";
 import { SharingPanel } from "../../components/builder/SharingPanel";
 import { EditPolicyPanel } from "../../components/builder/EditPolicyPanel";
 import { FormSettingsPanel } from "../../components/builder/FormSettingsPanel";
+import { AccessControlPanel } from "../../components/builder/AccessControlPanel";
 import { RoutingPanel } from "../../components/builder/RoutingPanel";
 import { BranchingPanel } from "../../components/builder/BranchingPanel";
 import { PreviewModal } from "../../components/builder/PreviewModal";
@@ -20,13 +21,14 @@ import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
 
-type Tab = "content" | "branching" | "branding" | "sharing" | "settings";
+type Tab = "content" | "branching" | "branding" | "sharing" | "access" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "content", label: "Content" },
   { id: "branching", label: "Branching" },
   { id: "branding", label: "Branding" },
   { id: "sharing", label: "Sharing" },
+  { id: "access", label: "Access" },
   { id: "settings", label: "Settings" },
 ];
 
@@ -202,6 +204,7 @@ export function BuilderPage() {
       {tab === "branching" && <BranchingPanel form={form} />}
       {tab === "branding" && <BrandingPanel form={form} />}
       {tab === "sharing" && <SharingPanel form={form} />}
+      {tab === "access" && <AccessControlPanel form={form} capabilities={capabilities} />}
       {tab === "settings" && (
         <>
           <FormSettingsPanel form={form} />

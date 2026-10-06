@@ -165,11 +165,20 @@ build's `dist/`).
    the troubleshooting note above). These aren't secrets in the security sense
    (nothing here is a credential — see the top of this file), but Actions
    variables are the standard place for per-environment build config.
+   **Also add `BASE_PATH` set to `/`** once you're ready to cut over to the
+   custom domain (see `vite.config.ts`'s comment on this) — until then, leave
+   it unset so the app keeps building for the `github.io/<repo>/` subpath.
 4. Push to `main` — the workflow builds and deploys automatically from then on.
-5. In GoDaddy DNS for `jil-jupiter.com`, add a **CNAME**: `form` →
-   `<github-username>.github.io`.
+5. In your DNS provider for `jil-jupiter.com` (GoDaddy, or your registrar/host's
+   DNS zone — e.g. Plesk), add a **CNAME**: `form` → `<github-username>.github.io`.
+   If your DNS panel auto-provisions hosting (and therefore an A record) when you
+   add a subdomain, you'll need to remove/disable that hosting first — an A
+   record and a CNAME can't coexist for the same name. Confirm with `nslookup
+   form.jil-jupiter.com` that it resolves to a `github.io` IP, not your host's
+   own server, before expecting GitHub's custom-domain check to pass.
 6. Back in the Azure App Registration (step 1), add `https://form.jil-jupiter.com`
-   as a second SPA redirect URI.
+   as a second SPA redirect URI (keep the existing `github.io` one registered
+   too — don't remove it until the new domain is confirmed working end-to-end).
 
 ## 5. Local environment
 

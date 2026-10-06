@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import { graphFetch, graphFetchBinary, graphUploadBinaryViaSession } from "./graphClient";
-import { GraphError } from "./graphErrors";
+import { GraphError, GraphThrottledError } from "./graphErrors";
 import { resolveDriveIdByLibraryName } from "./sites";
 import { LIBRARY_NAMES } from "./bootstrap";
 import { graphScopes } from "../auth/msalConfig";
@@ -467,7 +467,14 @@ async function withOptimisticUpdate<T>(
       // session ends), so it's worth a few delayed retries before giving up
       // to this same synchronous submit/edit call.
       const isLocked = err instanceof GraphError && err.status === 423;
-      const willRetry = (isConflict || isVerificationMiss || isLocked) && attempt < maxAttempts;
+      // graphFetch/graphUploadBinaryViaSession already retry 429/503
+      // internally (honoring the server's real Retry-After) before giving up
+      // and throwing GraphThrottledError — reaching here means throttling
+      // persisted through that entire internal budget. Worth one more round
+      // here too, honoring the same server-provided wait time rather than
+      // treating it as a hard failure.
+      const isThrottled = err instanceof GraphThrottledError;
+      const willRetry = (isConflict || isVerificationMiss || isLocked || isThrottled) && attempt < maxAttempts;
       // Deliberately permanent, not temporary debug logging — this file's
       // whole write path has a real history of failures that were
       // otherwise completely silent (see git history), and this is the one
@@ -486,8 +493,10 @@ async function withOptimisticUpdate<T>(
       // Someone else wrote first (conflict) or this write didn't actually
       // take effect (verification miss) — a fresh read is all either needs,
       // so loop immediately. A lock needs actual elapsed time to clear, not
-      // just a fresh read, so give it one.
+      // just a fresh read, so give it one; throttling has a server-specified
+      // wait time, so use that instead of guessing.
       if (isLocked) await sleep(1000 * attempt);
+      if (err instanceof GraphThrottledError) await sleep(err.retryAfterMs);
     }
   }
   throw new Error("Could not save — too many concurrent edits, please try again.");

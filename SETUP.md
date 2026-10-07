@@ -132,6 +132,18 @@ Owner:
 Every change made from **Manage roles** takes effect for that person the
 next time they reload or sign back in — it's not a live push.
 
+**An `AppRoles` entry is NOT a substitute for real SharePoint access.**
+Promoting someone to Owner/Admin here only controls what this *app* lets
+them do — it has no connection to SharePoint's own permission system. If
+someone's account was never separately granted at least **Edit/Contribute**
+on the SharePoint data site (the pre-existing minimum from step 2, above),
+every Graph call the app makes — starting with the very first one, resolving
+the site itself — fails with a 403 for them, AppRoles role or not. The app
+now shows a clear message for this specific case instead of a raw Graph
+error, but the fix is still a separate, manual step: add their account to the
+SharePoint site (Site access → add them with at least Edit permission, same
+as step 2), not anything inside this app.
+
 **Security note:** the `ConnectorConfigs` list can hold connection details for
 external data sources (e.g. a Power Automate flow URL, which acts like a bearer
 token). If you add any connector whose config shouldn't be readable by every

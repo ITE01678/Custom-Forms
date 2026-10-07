@@ -4,6 +4,7 @@ import { getFormById } from "../../services/forms";
 import { getResponsesForForm } from "../../services/responses";
 import type { ResponseRow } from "../../services/excel";
 import { AppShell } from "../../components/layout/AppShell";
+import { Icon } from "../../components/common/Icon";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { FormDefinition } from "../../formsSchema/types";
 
@@ -62,13 +63,13 @@ export function ResponsesPage() {
     <AppShell backTo={{ to: `/builder/${form.id}`, label: "Builder" }}>
       <div className="page page--wide">
       <div className="page-header">
-        <span className="page-header__icon" aria-hidden="true">📊</span>
+        <span className="page-header__icon"><Icon name="chart" size={20} /></span>
         <div>
           <h1>{form.title}</h1>
           <p className="page-header__subtitle">{rows.length} response{rows.length === 1 ? "" : "s"}</p>
         </div>
         <Link to={`/admin/sync-health?formId=${form.id}`} className="icon-btn" data-tooltip="Sync health for this form">
-          🩺
+          <Icon name="pulse" size={16} />
         </Link>
       </div>
 

@@ -9,6 +9,8 @@ import {
   type AppRoleFields,
 } from "../../services/siteRoles";
 import { AppShell } from "../../components/layout/AppShell";
+import { PeoplePicker } from "../../components/common/PeoplePicker";
+import { Icon } from "../../components/common/Icon";
 import type { ListItem } from "../../services/lists";
 import type { SiteRole } from "../../formsSchema/types";
 
@@ -105,7 +107,7 @@ export function ManageRolesPage() {
     <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
         <div className="page-header">
-          <span className="page-header__icon" aria-hidden="true">🔐</span>
+          <span className="page-header__icon"><Icon name="lock" size={20} /></span>
           <div>
             <h1>Manage roles</h1>
             <p className="page-header__subtitle">
@@ -122,12 +124,7 @@ export function ManageRolesPage() {
           <h3>Set an override</h3>
           <div className="field-row">
             <label>Email</label>
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder={`name@${ALLOWED_DOMAIN}`}
-            />
+            <PeoplePicker value={newEmail} onChange={setNewEmail} placeholder={`name@${ALLOWED_DOMAIN}`} />
           </div>
           <div className="field-row">
             <label>Role</label>

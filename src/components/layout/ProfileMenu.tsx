@@ -4,20 +4,12 @@ import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 import { listAllForms } from "../../services/forms";
 import { getUnresolved } from "../../services/syncQueue";
 import { listAppRoleOverrides } from "../../services/siteRoles";
+import { initialsOf } from "../../lib/initials";
 
 interface SiteStats {
   totalForms: number;
   pendingSync: number;
   roleOverrides: number;
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 /** Click-to-open profile panel — name/email/role for everyone, plus a

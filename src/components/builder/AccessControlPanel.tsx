@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { ALLOWED_DOMAIN } from "../../auth/msalConfig";
 import { getUserProfile } from "../../services/users";
+import { PeoplePicker } from "../common/PeoplePicker";
 import {
   listFormPermissions,
   removeFormPermission,
@@ -194,12 +195,7 @@ export function AccessControlPanel({ form, capabilities }: Props) {
           <h3>Add a person</h3>
           <div className="field-row">
             <label>Email</label>
-            <input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder={`name@${ALLOWED_DOMAIN}`}
-            />
+            <PeoplePicker value={newEmail} onChange={setNewEmail} placeholder={`name@${ALLOWED_DOMAIN}`} />
           </div>
           <div className="field-row">
             <label>Access level</label>

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 import { ProfileMenu } from "./ProfileMenu";
+import { Icon } from "../common/Icon";
 
 interface Props {
   /** Optional breadcrumb back-link shown next to the brand, e.g. "← My forms". */
@@ -29,15 +30,15 @@ export function AppTopbar({ backTo }: Props) {
       </div>
       <div className="app-topbar__user">
         <Link to="/my-responses" className="icon-btn" data-tooltip="My responses">
-          🗂️
+          <Icon name="folder" size={16} />
         </Link>
         {capabilities.canManageRoles ? (
           <Link to="/admin/roles" className="icon-btn" data-tooltip="Manage roles">
-            🔐
+            <Icon name="lock" size={16} />
           </Link>
         ) : (
           <span className="icon-btn is-disabled" data-tooltip="Manage roles — Owner access required">
-            🔐
+            <Icon name="lock" size={16} />
           </span>
         )}
         <ProfileMenu />

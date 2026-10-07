@@ -20,6 +20,7 @@ import { AppShell } from "../../components/layout/AppShell";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { textStyleToCss } from "../../lib/textStyle";
 import type { ConnectorOption } from "../../components/builder/FieldEditor";
+import { Icon, type IconName } from "../../components/common/Icon";
 import type { CSSProperties } from "react";
 
 // Mirrors RuntimeShell.tsx's own DEFAULT_ACCENT/--accent mechanism, applied
@@ -31,13 +32,13 @@ const DEFAULT_ACCENT = "#4f46e5";
 
 type Tab = "content" | "branching" | "branding" | "sharing" | "access" | "settings";
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "content", label: "Content", icon: "📝" },
-  { id: "branching", label: "Branching", icon: "🔀" },
-  { id: "branding", label: "Branding", icon: "🎨" },
-  { id: "sharing", label: "Sharing", icon: "🔗" },
-  { id: "access", label: "Access", icon: "🔐" },
-  { id: "settings", label: "Settings", icon: "⚙️" },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "content", label: "Content", icon: "edit" },
+  { id: "branching", label: "Branching", icon: "branch" },
+  { id: "branding", label: "Branding", icon: "palette" },
+  { id: "sharing", label: "Sharing", icon: "link" },
+  { id: "access", label: "Access", icon: "lock" },
+  { id: "settings", label: "Settings", icon: "settings" },
 ];
 
 export function BuilderPage() {
@@ -167,7 +168,9 @@ export function BuilderPage() {
     <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
       <div className="builder-hero">
-        <div className="builder-hero__eyebrow">📝 Form builder</div>
+        <div className="builder-hero__eyebrow">
+          <Icon name="edit" size={13} /> Form builder
+        </div>
         <div className="builder-hero__row">
           <input
             className="builder-hero__title"
@@ -186,7 +189,9 @@ export function BuilderPage() {
       <div className="builder-tabs">
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? "is-active" : ""} onClick={() => setTab(t.id)}>
-            <span className="builder-tabs__icon" aria-hidden="true">{t.icon}</span>
+            <span className="builder-tabs__icon">
+              <Icon name={t.icon} size={15} />
+            </span>
             {t.label}
           </button>
         ))}

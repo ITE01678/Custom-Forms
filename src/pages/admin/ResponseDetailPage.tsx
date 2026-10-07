@@ -11,6 +11,7 @@ import { resolveFirstSectionId } from "../../formsSchema/branching";
 import { formatAnswer } from "../../lib/formatAnswer";
 import { FillRunner } from "../../components/runtime/FillRunner";
 import { AppShell } from "../../components/layout/AppShell";
+import { Icon } from "../../components/common/Icon";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { AnswerValue, AuditEntry, FormDefinition, FormResponse, ResponseRoutingState } from "../../formsSchema/types";
 
@@ -140,7 +141,7 @@ export function ResponseDetailPage() {
     <AppShell backTo={{ to: `/admin/forms/${form.id}/responses`, label: "Responses" }}>
       <div className="page page--wide">
       <div className="page-header">
-        <span className="page-header__icon" aria-hidden="true">📄</span>
+        <span className="page-header__icon"><Icon name="document" size={20} /></span>
         <div>
           <h1>{form.title}</h1>
           <p className="page-header__subtitle">

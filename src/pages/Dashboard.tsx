@@ -3,9 +3,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { useSiteCapabilities } from "../auth/CapabilityProvider";
 import { createForm, getFormById, listMyForms, type StoredForm } from "../services/forms";
-import { listFormPermissionsForEmail } from "../services/formPermissions";
+import { listFormPermissionsForEmail, getFormCollaborators } from "../services/formPermissions";
 import { AppShell } from "../components/layout/AppShell";
 import { FormQuickActions } from "../components/common/FormQuickActions";
+import { MyResponseCard } from "../components/common/MyResponseCard";
+import { Icon } from "../components/common/Icon";
+import { useMyResponses } from "../hooks/useMyResponses";
+import { initialsOf } from "../lib/initials";
+import type { FormCollaborator } from "../formsSchema/types";
 
 interface SharedFormRow {
   form: StoredForm["form"];
@@ -13,16 +18,22 @@ interface SharedFormRow {
   canManageResponses: boolean;
 }
 
+type DashboardView = "forms" | "responses";
+
 export function Dashboard() {
   const { email, displayName } = useAuth();
   const { capabilities: siteCapabilities } = useSiteCapabilities();
   const navigate = useNavigate();
 
+  const [view, setView] = useState<DashboardView>("forms");
   const [forms, setForms] = useState<StoredForm[]>([]);
   const [sharedForms, setSharedForms] = useState<SharedFormRow[]>([]);
+  const [collaboratorsByFormId, setCollaboratorsByFormId] = useState<Record<string, FormCollaborator[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const myResponses = useMyResponses();
 
   useEffect(() => {
     if (!email) return;
@@ -57,6 +68,26 @@ export function Dashboard() {
     };
   }, [email]);
 
+  // Who else has access to each form I own — shown as mini avatar bubbles on
+  // its card. A second effect (depends on `forms`) rather than folded into
+  // the fetch above, since it needs the owned-forms list to exist first.
+  useEffect(() => {
+    if (forms.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      forms.map(({ form }) =>
+        getFormCollaborators(form.id)
+          .then((c) => [form.id, c] as const)
+          .catch(() => [form.id, []] as const)
+      )
+    ).then((pairs) => {
+      if (!cancelled) setCollaboratorsByFormId(Object.fromEntries(pairs));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [forms]);
+
   async function handleCreate() {
     if (!email) return;
     setCreating(true);
@@ -75,23 +106,68 @@ export function Dashboard() {
     <AppShell>
       <div className="page page--wide">
         <div className="dashboard-toolbar">
-          <button
-            className="btn-primary"
-            onClick={handleCreate}
-            disabled={creating || !siteCapabilities.canCreateForms}
-            title={!siteCapabilities.canCreateForms ? "Admin or Owner access required" : undefined}
-          >
-            {creating ? "Creating…" : "+ Create a form"}
-          </button>
+          <div className="dashboard-view-toggle" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "forms"}
+              className={view === "forms" ? "is-active" : ""}
+              onClick={() => setView("forms")}
+            >
+              My forms
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "responses"}
+              className={view === "responses" ? "is-active" : ""}
+              onClick={() => setView("responses")}
+            >
+              My responses
+            </button>
+          </div>
+          {view === "forms" && (
+            <button
+              className="btn-primary"
+              onClick={handleCreate}
+              disabled={creating || !siteCapabilities.canCreateForms}
+              title={!siteCapabilities.canCreateForms ? "Admin or Owner access required" : undefined}
+            >
+              {creating ? "Creating…" : "+ Create a form"}
+            </button>
+          )}
         </div>
 
         {error && <p className="error-text">{error}</p>}
 
-        {loading ? (
+        {view === "responses" ? (
+          <>
+            {myResponses.error && <p className="error-text">{myResponses.error}</p>}
+            {myResponses.loading ? (
+              <p>Loading your responses…</p>
+            ) : myResponses.rows.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state__icon">
+                  <Icon name="folder" size={28} />
+                </div>
+                <h2>No responses yet</h2>
+                <p>Forms you fill out and submit will show up here.</p>
+              </div>
+            ) : (
+              <div className="form-grid">
+                {myResponses.rows.map((row) => (
+                  <MyResponseCard key={row.form.id} {...row} />
+                ))}
+              </div>
+            )}
+          </>
+        ) : loading ? (
           <p>Loading your forms…</p>
         ) : forms.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state__icon">📝</div>
+            <div className="empty-state__icon">
+              <Icon name="edit" size={28} />
+            </div>
             <h2>No forms yet</h2>
             {siteCapabilities.canCreateForms ? (
               <>
@@ -106,29 +182,50 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="form-grid">
-            {forms.map(({ form }) => (
-              <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
-                <div className="form-card__header">
-                  <span className="form-card__icon" aria-hidden="true">📋</span>
-                  <span className="form-card__title">{form.title || "Untitled form"}</span>
-                  <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
-                </div>
-                <FormQuickActions form={form} canViewResponses canViewSyncHealth />
-                {form.description && <p className="form-card__description">{form.description}</p>}
-                <p className="form-card__meta">Updated {new Date(form.updatedAt).toLocaleDateString()}</p>
-              </Link>
-            ))}
+            {forms.map(({ form }) => {
+              const collaborators = collaboratorsByFormId[form.id] ?? [];
+              return (
+                <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
+                  <div className="form-card__header">
+                    <span className="form-card__icon">
+                      <Icon name="clipboard" size={18} />
+                    </span>
+                    <span className="form-card__title">{form.title || "Untitled form"}</span>
+                    <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
+                  </div>
+                  <FormQuickActions form={form} canViewResponses canViewSyncHealth />
+                  {form.description && <p className="form-card__description">{form.description}</p>}
+                  <p className="form-card__meta">Updated {new Date(form.updatedAt).toLocaleDateString()}</p>
+                  {collaborators.length > 0 && (
+                    <div className="form-card__collaborators" title={collaborators.map((c) => c.email).join(", ")}>
+                      {collaborators.slice(0, 4).map((c) => (
+                        <span key={c.email} className="form-card__collaborator-avatar">
+                          {initialsOf(c.displayName || c.email) || "?"}
+                        </span>
+                      ))}
+                      {collaborators.length > 4 && (
+                        <span className="form-card__collaborator-avatar form-card__collaborator-avatar--more">
+                          +{collaborators.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         )}
 
-        {sharedForms.length > 0 && (
+        {view === "forms" && sharedForms.length > 0 && (
           <>
             <h2 className="dashboard-section-heading">Shared with you</h2>
             <div className="form-grid">
               {sharedForms.map(({ form, canViewResponses, canManageResponses }) => (
                 <Link className="form-card" to={`/builder/${form.id}`} key={form.id}>
                   <div className="form-card__header">
-                    <span className="form-card__icon" aria-hidden="true">📋</span>
+                    <span className="form-card__icon">
+                      <Icon name="clipboard" size={18} />
+                    </span>
                     <span className="form-card__title">{form.title || "Untitled form"}</span>
                     <span className={`status-pill status-pill--${form.status}`}>{form.status}</span>
                   </div>

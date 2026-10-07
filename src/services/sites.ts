@@ -1,4 +1,5 @@
 import { graphFetch } from "./graphClient";
+import { GraphPermissionError } from "./graphErrors";
 import { graphScopes } from "../auth/msalConfig";
 
 /**
@@ -27,10 +28,33 @@ async function resolveSiteId(): Promise<string> {
         "create the 'Forms' SharePoint site first (see SETUP.md) and add these to .env.local."
     );
   }
-  const site = await graphFetch<{ id: string }>(`/sites/${SITE_HOSTNAME}:${SITE_PATH}`, {
-    scopes: graphScopes.sites,
-  });
-  return site.id;
+  try {
+    const site = await graphFetch<{ id: string }>(`/sites/${SITE_HOSTNAME}:${SITE_PATH}`, {
+      scopes: graphScopes.sites,
+    });
+    return site.id;
+  } catch (err) {
+    // This is the FIRST Graph call anything in the app makes, so a 403 here
+    // is almost always "this account has an AppRoles override (Owner/Admin)
+    // but was never actually given real SharePoint permission on the data
+    // site" — an AppRoles row only changes what this APP lets someone do; it
+    // can't grant SharePoint access, which is still a separate, real ACL
+    // (see SETUP.md's "Role model" section — Edit/Contribute on the site
+    // itself is the actual minimum for anyone to use the app at all).
+    // Confirmed the hard way: a brand-new Admin override 403'd here until
+    // they were added to the site directly in SharePoint, at which point it
+    // started working immediately with no other change. Surface that
+    // distinction instead of a raw Graph error dump.
+    if (err instanceof GraphPermissionError) {
+      throw new Error(
+        "Your Microsoft 365 account doesn't have access to this app's SharePoint site yet. " +
+          "An app role (Owner/Admin/Member) only controls what you can do INSIDE this app — " +
+          "it doesn't grant SharePoint permission. Ask a Site Owner to add your account with at " +
+          "least Edit/Contribute permission on the SharePoint site itself, then reload."
+      );
+    }
+    throw err;
+  }
 }
 
 async function resolveDriveId(siteId: string): Promise<string> {

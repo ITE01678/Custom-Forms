@@ -61,6 +61,24 @@ export function getUserProfile(email: string): Promise<EntraProfile> {
   });
 }
 
+/** Type-ahead directory search for people pickers (Access control, Manage
+ *  roles) — matches on display name OR mail prefix. $search (not $filter)
+ *  requires the ConsistencyLevel: eventual header on /users; same
+ *  User.Read.All scope already used for every other colleague lookup here. */
+export function searchUsers(query: string): Promise<EntraProfile[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return Promise.resolve([]);
+  // $search string literals don't allow an unescaped double-quote; a
+  // uuid-like paste or similar edge case shouldn't break the request.
+  const escaped = trimmed.replace(/"/g, '\\"');
+  // $orderby isn't reliably combinable with $search on /users — left out
+  // deliberately rather than risk a 400; 8 results need no server sort.
+  return graphFetch<{ value: EntraProfile[] }>(
+    `/users?$search="displayName:${escaped}" OR "mail:${escaped}"&$select=${PROFILE_SELECT}&$top=8`,
+    { scopes: graphScopes.userReadAll, headers: { ConsistencyLevel: "eventual" } }
+  ).then((r) => r.value);
+}
+
 export function getManager(email: string): Promise<EntraProfile> {
   return graphFetch<EntraProfile>(
     `/users/${encodeURIComponent(email)}/manager?$select=${PROFILE_SELECT}`,

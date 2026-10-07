@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { AppShell } from "../../components/layout/AppShell";
+import { Icon } from "../../components/common/Icon";
 import { ConnectorSourcePicker } from "../../components/admin/ConnectorSourcePicker";
 import {
   createConnectorConfig,
@@ -112,7 +113,7 @@ export function ConnectorsPage() {
     <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
       <div className="page-header">
-        <span className="page-header__icon" aria-hidden="true">🔌</span>
+        <span className="page-header__icon"><Icon name="plug" size={20} /></span>
         <div>
           <h1>Data source connectors</h1>
           <p className="page-header__subtitle">

@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 import { createForm } from "../../services/forms";
+import { Icon, type IconName } from "../common/Icon";
 
 interface NavItem {
   to: string;
   label: string;
-  icon: string;
+  icon: IconName;
   allowed: boolean;
   /** Shown as a tooltip on the disabled (greyed-out) version — explains WHY
    *  it's locked rather than just hiding it, a smoother experience than an
@@ -48,26 +49,26 @@ export function Sidebar() {
   }
 
   const items: NavItem[] = [
-    { to: "/", label: "Dashboard", icon: "🏠", allowed: true },
+    { to: "/", label: "Dashboard", icon: "home", allowed: true },
     {
       to: "/admin/connectors",
       label: "Data connectors",
-      icon: "🔌",
+      icon: "plug",
       allowed: capabilities.canManageConnectors,
       requirement: "Owner access required",
     },
     {
       to: "/admin/sync-health",
       label: "Sync health",
-      icon: "🩺",
+      icon: "pulse",
       allowed: capabilities.canViewTenantSyncHealth,
       requirement: "Owner access required",
     },
-    { to: "/my-responses", label: "My responses", icon: "🗂️", allowed: true },
+    { to: "/my-responses", label: "My responses", icon: "folder", allowed: true },
     {
       to: "/admin/roles",
       label: "Manage roles",
-      icon: "🔐",
+      icon: "lock",
       allowed: capabilities.canManageRoles,
       requirement: "Owner access required",
     },
@@ -81,7 +82,7 @@ export function Sidebar() {
         disabled={creating || !capabilities.canCreateForms}
         title={!capabilities.canCreateForms ? "Admin or Owner access required" : undefined}
       >
-        <span aria-hidden="true">{creating ? "⏳" : "➕"}</span>
+        <Icon name="plus" size={16} />
         {creating ? "Creating…" : "Create a form"}
       </button>
 
@@ -93,19 +94,19 @@ export function Sidebar() {
               to={item.to}
               className={`app-sidebar__link ${location.pathname === item.to ? "is-active" : ""}`}
             >
-              <span className="app-sidebar__icon" aria-hidden="true">
-                {item.icon}
+              <span className="app-sidebar__icon">
+                <Icon name={item.icon} size={17} />
               </span>
               {item.label}
             </Link>
           ) : (
             <span key={item.to} className="app-sidebar__link is-disabled" title={item.requirement}>
-              <span className="app-sidebar__icon" aria-hidden="true">
-                {item.icon}
+              <span className="app-sidebar__icon">
+                <Icon name={item.icon} size={17} />
               </span>
               {item.label}
-              <span className="app-sidebar__lock" aria-hidden="true">
-                🔒
+              <span className="app-sidebar__lock">
+                <Icon name="lock" size={13} />
               </span>
             </span>
           )

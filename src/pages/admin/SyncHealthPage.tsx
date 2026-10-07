@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { getUnresolved, getUnresolvedForForm, retryItem, type SyncQueueFields } from "../../services/syncQueue";
 import { getFormById } from "../../services/forms";
 import { AppShell } from "../../components/layout/AppShell";
+import { Icon } from "../../components/common/Icon";
 import { useSiteCapabilities } from "../../auth/CapabilityProvider";
 import { useFormCapabilities } from "../../hooks/useFormCapabilities";
 import type { ListItem } from "../../services/lists";
@@ -95,7 +96,7 @@ export function SyncHealthPage() {
     <AppShell backTo={{ to: "/", label: "My forms" }}>
       <div className="page page--wide">
       <div className="page-header">
-        <span className="page-header__icon" aria-hidden="true">🩺</span>
+        <span className="page-header__icon"><Icon name="pulse" size={20} /></span>
         <div>
           <h1>Sync Health</h1>
           <p className="page-header__subtitle">

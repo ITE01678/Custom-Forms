@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { getFormVersionWebUrl } from "../../services/forms";
+import { Icon } from "./Icon";
 import type { FormDefinition } from "../../formsSchema/types";
 
 interface Props {
@@ -47,7 +48,7 @@ export function FormQuickActions({ form, canViewResponses, canViewSyncHealth }: 
             navigate(`/admin/forms/${form.id}/responses`);
           }}
         >
-          📊
+          <Icon name="chart" size={14} />
         </button>
       )}
       {canViewSyncHealth && (
@@ -60,12 +61,12 @@ export function FormQuickActions({ form, canViewResponses, canViewSyncHealth }: 
             navigate(`/admin/sync-health?formId=${form.id}`);
           }}
         >
-          🩺
+          <Icon name="pulse" size={14} />
         </button>
       )}
       {form.latestPublishedVersion && (
         <button type="button" className="icon-btn icon-btn--sm" data-tooltip="Published snapshot" onClick={openSnapshot}>
-          📜
+          <Icon name="document" size={14} />
         </button>
       )}
     </div>

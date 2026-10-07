@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getFormBySlug } from "../../services/forms";
 import { RuntimeShell } from "../../components/runtime/RuntimeShell";
+import { Icon } from "../../components/common/Icon";
 import type { FormDefinition } from "../../formsSchema/types";
 
 export function SubmittedPage() {
@@ -25,7 +26,9 @@ export function SubmittedPage() {
   return (
     <RuntimeShell title="" branding={form.branding}>
       <div className="submitted-card">
-        <div className="submitted-card__icon">✓</div>
+        <div className="submitted-card__icon">
+          <Icon name="check" size={32} />
+        </div>
         <h1>Thanks!</h1>
         <p>{form.branding.confirmation.message ?? "Your response has been recorded."}</p>
       </div>

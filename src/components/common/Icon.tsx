@@ -1,18 +1,19 @@
 import type { ReactNode, SVGProps } from "react";
 
 /**
- * A small, hand-drawn line-icon set — replaces the emoji used in the
- * sidebar/topbar/dashboard-card/page-header chrome built this session.
- * Deliberately NOT a new dependency (no icon library/font): each glyph is
- * plain inline SVG, kept geometrically simple (lines, circles, rects) for
- * a consistent, crisp look regardless of the viewer's OS emoji font —
- * which was the actual complaint (platform emoji render "cartoonish/
- * bulky" and inconsistently across OSes).
- *
- * Deliberately scoped to the chrome introduced this session, not a sweep
- * of every emoji in the app (RichTextEditor's toolbar, PreviewModal's
- * device toggle, the Login page's feature cards, etc. all predate this
- * change and are a separate, much larger undertaking).
+ * A small, hand-drawn line-icon set used throughout the app in place of
+ * emoji. Deliberately NOT a new dependency (no icon library/font): each
+ * glyph is plain inline SVG, kept geometrically simple (lines, circles,
+ * rects) for a consistent, crisp look regardless of the viewer's OS emoji
+ * font — which was the actual complaint (platform emoji render
+ * "cartoonish/bulky" and inconsistently across OSes). Originally scoped to
+ * just the sidebar/topbar/dashboard-card/page-header chrome, later swept
+ * across the rest of the app (builder panels, runtime fields, the rich-
+ * text toolbar, the preview device toggle, the landing page) once
+ * confirmed as the right direction. A handful of glyphs were deliberately
+ * left alone — the rating-stars control's ★ and the B/I/U rich-text
+ * buttons' literal styled letters are conventional, universally-understood
+ * symbols in their own right, not "emoji" in the sense being fixed here.
  */
 export type IconName =
   | "home"
@@ -29,7 +30,18 @@ export type IconName =
   | "settings"
   | "clipboard"
   | "check"
-  | "edit";
+  | "edit"
+  | "grid"
+  | "close"
+  | "warning"
+  | "desktop"
+  | "mobile"
+  | "zap"
+  | "users"
+  | "alignLeft"
+  | "alignCenter"
+  | "alignRight"
+  | "bulletList";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -100,6 +112,49 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M14 7l3 3" />
     </>
   ),
+  grid: (
+    <>
+      <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
+    </>
+  ),
+  close: <path d="M5 5l14 14M19 5 5 19" />,
+  warning: (
+    <>
+      <path d="M12 3 2 20h20L12 3Z" />
+      <path d="M12 10v4" />
+      <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  desktop: (
+    <>
+      <rect x="3" y="4" width="18" height="12" rx="1.5" />
+      <path d="M9 20h6M12 16v4" />
+    </>
+  ),
+  mobile: <rect x="7" y="2.5" width="10" height="19" rx="2" />,
+  zap: <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M16.5 8.3a3 3 0 1 1 0 5.9" />
+      <path d="M15 19.5a5.3 5.3 0 0 1 5.5-4" />
+    </>
+  ),
+  alignLeft: <path d="M4 6h16M4 12h10M4 18h13" />,
+  alignCenter: <path d="M4 6h16M7 12h10M5.5 18h13" />,
+  alignRight: <path d="M4 6h16M10 12h10M7 18h13" />,
+  bulletList: (
+    <>
+      <circle cx="4.5" cy="6" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.1" fill="currentColor" stroke="none" />
+      <path d="M9 6h11M9 12h11M9 18h11" />
+    </>
+  ),
 };
 
 interface Props extends SVGProps<SVGSVGElement> {
@@ -107,7 +162,7 @@ interface Props extends SVGProps<SVGSVGElement> {
   size?: number;
 }
 
-export function Icon({ name, size = 18, ...rest }: Props) {
+export function Icon({ name, size = 18, style, ...rest }: Props) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -118,6 +173,7 @@ export function Icon({ name, size = 18, ...rest }: Props) {
       strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
+      style={{ verticalAlign: "-0.125em", flexShrink: 0, ...style }}
       aria-hidden="true"
       {...rest}
     >

@@ -1,6 +1,7 @@
 import type { ConnectorType, FormField } from "../../formsSchema/types";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { MediaUploadField } from "./MediaUploadField";
+import { Icon } from "../common/Icon";
 import { TextStyleControls } from "./TextStyleControls";
 
 export interface ConnectorOption {
@@ -99,7 +100,7 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
           ↓
         </button>
         <button onClick={() => removeField(sectionId, field.id)} title="Remove field">
-          ✕
+          <Icon name="close" size={13} />
         </button>
       </div>
 
@@ -183,7 +184,7 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                     onClick={() => set({ options: (field.options ?? []).filter((_, j) => j !== i) })}
                     title="Remove option"
                   >
-                    ✕
+                    <Icon name="close" size={12} />
                   </button>
                 </div>
                 <details className="field-editor__option-image">
@@ -573,6 +574,20 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                       placeholder={isGraphConnector ? "displayName" : "e.g. Employee Name"}
                     />
                   </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={!!field.connectorAutofill?.includeRespondentAsOption}
+                      onChange={(e) =>
+                        field.connectorAutofill &&
+                        set({
+                          connectorAutofill: { ...field.connectorAutofill, includeRespondentAsOption: e.target.checked },
+                        })
+                      }
+                    />
+                    Also show the respondent themselves as a selectable option (e.g. "team roster"
+                    lookups naturally include them — off by default)
+                  </label>
                   {isGraphConnector ? (
                     <p className="fill-field__help">
                       One option per matched row (e.g. one per direct report). This connector
@@ -737,7 +752,7 @@ function RepeatingTableSettings({ field, connectorOptions, onChange }: Repeating
               }}
             />
             <button onClick={() => onChange({ columns: columns.filter((_, j) => j !== i) })} title="Remove column">
-              ✕
+              <Icon name="close" size={12} />
             </button>
           </div>
         ))}

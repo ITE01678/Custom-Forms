@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import QRCode from "qrcode";
+import { Icon } from "../common/Icon";
 import type { FormDefinition } from "../../formsSchema/types";
 
 interface Props {
@@ -71,7 +72,9 @@ export function SharingPanel({ form, onOpenAccessTab }: Props) {
       </div>
 
       <div className="panel callout-panel">
-        <h3>🤝 Want someone else to help build this?</h3>
+        <h3>
+          <Icon name="users" size={17} /> Want someone else to help build this?
+        </h3>
         <p>
           A share link above is for <strong>respondents</strong> — people filling out the form. To invite
           a colleague to <strong>co-design</strong> this form with you (edit content, branding, settings —

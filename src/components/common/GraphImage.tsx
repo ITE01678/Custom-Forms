@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { useResolvedImageUrl } from "../../hooks/useResolvedImageUrl";
+import { Icon } from "./Icon";
 
 interface Props {
   src: string | undefined;
@@ -16,7 +17,13 @@ interface Props {
  *  image and a still-loading one are otherwise indistinguishable. */
 export function GraphImage({ src, alt, className, style }: Props) {
   const { url, error } = useResolvedImageUrl(src);
-  if (error) return <span className="graph-image-error" title={error}>⚠ Couldn't load image</span>;
+  if (error) {
+    return (
+      <span className="graph-image-error" title={error}>
+        <Icon name="warning" size={13} /> Couldn't load image
+      </span>
+    );
+  }
   if (!url) return null;
   return <img src={url} alt={alt} className={className} style={style} />;
 }

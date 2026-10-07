@@ -1,5 +1,6 @@
 import type { FieldType, FormField } from "../../formsSchema/types";
 import type { ConditionNode, Operator, Predicate } from "../../formsSchema/condition";
+import { Icon } from "../common/Icon";
 
 interface Props {
   condition: ConditionNode | undefined;
@@ -247,7 +248,7 @@ export function ConditionBuilder({ condition, availableFields, onChange }: Props
               ))}
 
             <button onClick={() => removePredicate(i)} title="Remove condition">
-              ✕
+              <Icon name="close" size={13} />
             </button>
           </div>
         );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FillRunner } from "../runtime/FillRunner";
 import { RuntimeShell } from "../runtime/RuntimeShell";
+import { Icon } from "../common/Icon";
 import type { FormDefinition } from "../../formsSchema/types";
 
 interface Props {
@@ -31,20 +32,24 @@ export function PreviewModal({ form, onClose }: Props) {
         <span>Preview — nothing you submit here is saved</span>
         <span className="fill-source-toggle">
           <button type="button" className={device === "desktop" ? "is-active" : ""} onClick={() => setDevice("desktop")}>
-            🖥 Desktop
+            <Icon name="desktop" size={14} /> Desktop
           </button>
           <button type="button" className={device === "mobile" ? "is-active" : ""} onClick={() => setDevice("mobile")}>
-            📱 Mobile
+            <Icon name="mobile" size={14} /> Mobile
           </button>
         </span>
-        <button onClick={onClose}>Close preview ✕</button>
+        <button onClick={onClose}>
+          Close preview <Icon name="close" size={12} />
+        </button>
       </div>
       <div className="preview-modal__body">
         <div className={device === "mobile" ? "preview-modal__frame--mobile" : ""}>
           {done ? (
             <RuntimeShell title="" branding={form.branding}>
               <div className="submitted-card">
-                <div className="submitted-card__icon">✓</div>
+                <div className="submitted-card__icon">
+                  <Icon name="check" size={32} />
+                </div>
                 <h1>Preview complete</h1>
                 <p>{form.branding.confirmation.message ?? "Your response has been recorded."}</p>
                 <button onClick={onClose}>Back to builder</button>

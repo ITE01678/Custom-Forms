@@ -20,6 +20,13 @@ interface SharedFormRow {
 
 type DashboardView = "forms" | "responses";
 
+function greetingForHour(hour: number): string {
+  if (hour < 5) return "Good night";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export function Dashboard() {
   const { email, displayName } = useAuth();
   const { capabilities: siteCapabilities } = useSiteCapabilities();
@@ -102,9 +109,22 @@ export function Dashboard() {
     }
   }
 
+  const firstName = (displayName ?? email ?? "").trim().split(/\s+/)[0] || "there";
+  const todayLabel = new Date().toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+
   return (
     <AppShell>
       <div className="page page--wide">
+        <div className="dashboard-hero">
+          <div className="dashboard-hero__date">{todayLabel}</div>
+          <h1 className="dashboard-hero__greeting">
+            {greetingForHour(new Date().getHours())}, {firstName}
+          </h1>
+          <p className="dashboard-hero__tagline">
+            <strong>Custom Forms</strong> — build, share, and collect responses without ever leaving SharePoint.
+          </p>
+        </div>
+
         <div className="dashboard-toolbar">
           <div className="dashboard-view-toggle" role="tablist">
             <button

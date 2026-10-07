@@ -1,24 +1,25 @@
 import { useAuth } from "../auth/useAuth";
 import { stashCurrentPath } from "../auth/postLoginRedirect";
+import { Icon, type IconName } from "../components/common/Icon";
 
-const FEATURES = [
+const FEATURES: { icon: IconName; title: string; body: string }[] = [
   {
-    icon: "🗂️",
+    icon: "folder",
     title: "Responses land in real SharePoint Excel",
     body: "No exports, no third-party database — every submission is a row in an actual .xlsx workbook in your SharePoint site, viewable and exportable anytime.",
   },
   {
-    icon: "⚡",
+    icon: "zap",
     title: "Auto-fill from Microsoft 365, Excel, or SharePoint",
     body: "Pull a respondent's department, employee ID, or manager straight from Entra ID, or wire a field to a shared Excel file, a SharePoint List, or a Power Automate flow.",
   },
   {
-    icon: "✏️",
+    icon: "edit",
     title: "Editable after submission — fully audited",
     body: "Unlike MS Forms, a response isn't final. Respondents (or admins) can come back and edit it, per a policy you control, with every change logged.",
   },
   {
-    icon: "🔀",
+    icon: "branch",
     title: "Branching, branding, and a builder that keeps up",
     body: "Conditional sections, validation, theme colors, QR codes, save-and-resume drafts, and file attachments stored in SharePoint — the pieces a real form needs.",
   },
@@ -140,7 +141,9 @@ export function Login() {
         <div className="feature-grid">
           {FEATURES.map((f) => (
             <div className="feature-card" key={f.title}>
-              <div className="feature-card__icon">{f.icon}</div>
+              <div className="feature-card__icon">
+                <Icon name={f.icon} size={22} />
+              </div>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
             </div>

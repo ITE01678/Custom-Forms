@@ -115,6 +115,18 @@ export function Sidebar() {
 
       <div className="app-sidebar__footer">
         <span className="app-sidebar__role-pill">{capabilities.role}</span>
+        <a
+          href="https://central.jil-jupiter.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="app-sidebar__link app-sidebar__central-link"
+          title="Open Jupiter Central in a new tab"
+        >
+          <span className="app-sidebar__icon">
+            <Icon name="grid" size={17} />
+          </span>
+          Jupiter Central
+        </a>
       </div>
     </nav>
   );

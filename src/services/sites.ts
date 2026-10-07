@@ -72,6 +72,26 @@ export async function getFormsSite(): Promise<SiteInfo> {
   return cached;
 }
 
+export interface StorageQuota {
+  usedBytes: number;
+  /** null if the tenant reports no fixed total (unlimited/unknown) — SharePoint
+   *  Online normally always returns one, but don't assume it everywhere. */
+  totalBytes: number | null;
+}
+
+/** SharePoint storage used by this app's whole data site (every form's
+ *  response workbooks, attachments, published snapshots — everything in
+ *  its default document library) — surfaced in the Owner/Admin profile
+ *  panel's "site conditions" summary. */
+export async function getSiteStorageQuota(): Promise<StorageQuota> {
+  const { driveId } = await getFormsSite();
+  const drive = await graphFetch<{ quota?: { used?: number; total?: number } }>(
+    `/drives/${driveId}?$select=quota`,
+    { scopes: graphScopes.sites }
+  );
+  return { usedBytes: drive.quota?.used ?? 0, totalBytes: drive.quota?.total ?? null };
+}
+
 /** Resolves a SharePoint List's id by its display name within the Forms site. */
 export async function resolveListId(listName: string): Promise<string> {
   const { siteId } = await getFormsSite();

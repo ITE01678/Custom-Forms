@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { GraphImage } from "../common/GraphImage";
+import { Icon } from "../common/Icon";
 import { RichText } from "../common/RichText";
 import { useResolvedImageUrl } from "../../hooks/useResolvedImageUrl";
 import { textStyleToCss } from "../../lib/textStyle";
@@ -83,7 +84,9 @@ export function RuntimeShell({ title, titleStyle, description, branding, childre
         <div className={cardClass}>
           <div className="runtime__brand-bar" />
           {bg?.type === "image" && bgImageError && (
-            <p className="graph-image-error">⚠ Couldn't load the background image</p>
+            <p className="graph-image-error">
+              <Icon name="warning" size={14} /> Couldn't load the background image
+            </p>
           )}
           {branding.logoUrl && (
             <div className={logoWrapClass}>

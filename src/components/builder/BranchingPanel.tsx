@@ -1,6 +1,7 @@
 import type { BranchRule, FormDefinition, FormField, FormSection } from "../../formsSchema/types";
 import { useFormBuilderStore } from "../../hooks/useFormBuilderStore";
 import { ConditionBuilder } from "./ConditionBuilder";
+import { Icon } from "../common/Icon";
 
 interface Props {
   form: FormDefinition;
@@ -101,7 +102,7 @@ export function BranchingPanel({ form }: Props) {
                   ))}
                 </select>
                 <button onClick={() => removeRule(rule.id)} title="Remove rule">
-                  ✕
+                  <Icon name="close" size={13} />
                 </button>
               </div>
             ))}

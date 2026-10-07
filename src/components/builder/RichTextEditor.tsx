@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { sanitizeHtml } from "../../lib/sanitizeHtml";
+import { Icon } from "../common/Icon";
 
 interface Props {
   value: string;
@@ -73,7 +74,7 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
           onClick={() => exec("justifyLeft")}
           title="Align left"
         >
-          ⯇
+          <Icon name="alignLeft" size={14} />
         </button>
         <button
           type="button"
@@ -81,7 +82,7 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
           onClick={() => exec("justifyCenter")}
           title="Align center"
         >
-          ☰
+          <Icon name="alignCenter" size={14} />
         </button>
         <button
           type="button"
@@ -89,7 +90,7 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
           onClick={() => exec("justifyRight")}
           title="Align right"
         >
-          ⯈
+          <Icon name="alignRight" size={14} />
         </button>
         <span className="rich-text-editor__divider" />
         <button
@@ -98,7 +99,7 @@ export function RichTextEditor({ value, onChange, placeholder }: Props) {
           onClick={() => exec("insertUnorderedList")}
           title="Bullet list"
         >
-          • ≡
+          <Icon name="bulletList" size={14} />
         </button>
         <span className="rich-text-editor__divider" />
         {TEXT_COLORS.map((c) => (

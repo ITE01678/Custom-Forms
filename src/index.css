@@ -452,7 +452,14 @@ textarea {
 }
 
 .feature-card__icon {
-  font-size: 1.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--brand-lime) 22%, var(--surface-sunken));
+  color: var(--brand-navy);
   margin-bottom: 0.75rem;
 }
 
@@ -1802,6 +1809,9 @@ textarea {
 }
 
 .fill-source-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.15rem 0.6rem;
   font-size: 0.78rem;
   border-radius: 999px;
@@ -2314,6 +2324,14 @@ textarea {
   margin-top: auto;
   padding-top: 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.app-sidebar__central-link {
+  width: 100%;
 }
 
 .app-sidebar__role-pill {
@@ -2466,6 +2484,57 @@ textarea {
 }
 
 /* --- Dashboard --- */
+
+.dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--brand-gradient);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  padding: 1.75rem 2rem;
+  margin: 1.5rem 0;
+  color: #fff;
+}
+
+.dashboard-hero::after {
+  content: "";
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 220px;
+  height: 220px;
+  background: var(--brand-lime);
+  opacity: 0.14;
+  border-radius: 30px;
+  transform: rotate(24deg);
+  pointer-events: none;
+}
+
+.dashboard-hero__date {
+  position: relative;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--brand-lime);
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-hero__greeting {
+  position: relative;
+  margin: 0;
+  font-size: 1.7rem;
+  color: #fff;
+}
+
+.dashboard-hero__tagline {
+  position: relative;
+  margin: 0.5rem 0 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dashboard-hero__tagline strong {
+  color: var(--brand-lime);
+}
 
 .dashboard-section-heading {
   margin: 2rem 0 1rem;
@@ -2662,7 +2731,9 @@ textarea {
 }
 
 .graph-image-error {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.3rem 0.6rem;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--danger, #dc2626) 12%, transparent);

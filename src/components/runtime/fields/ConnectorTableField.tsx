@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAutofill } from "./useAutofill";
 import { textStyleToCss } from "../../../lib/textStyle";
 import { QuestionMedia } from "./QuestionMedia";
+import { Icon } from "../../common/Icon";
 import type { AnswerValue, FormField, RepeatingTableValue } from "../../../formsSchema/types";
 
 interface Props {
@@ -291,7 +292,7 @@ function ManualGrid({
                 ))}
                 <td>
                   <button aria-label={`Remove row ${i + 1}`} onClick={() => onChange(rows.filter((_, j) => j !== i))}>
-                    ✕
+                    <Icon name="close" size={13} />
                   </button>
                 </td>
               </tr>

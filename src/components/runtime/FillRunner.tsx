@@ -7,6 +7,7 @@ import { ConnectorTableField } from "./fields/ConnectorTableField";
 import { FileUploadField } from "./fields/FileUploadField";
 import { GraphImage } from "../common/GraphImage";
 import { RichText } from "../common/RichText";
+import { Icon } from "../common/Icon";
 import { getVisibleFields, resolveFirstSectionId, resolveNextSectionId, shuffleSectionOrder } from "../../formsSchema/branching";
 import { validateFields, type FieldError } from "../../formsSchema/validation";
 import type { SectionAccess } from "../../formsSchema/routingAccess";
@@ -220,7 +221,7 @@ export function FillRunner({
       )}
       {!isCurrentSectionEditable && (
         <p className="fill-runner__readonly-note">
-          🔒 Shown for context — this section was completed at an earlier stage.
+          <Icon name="lock" size={13} /> Shown for context — this section was completed at an earlier stage.
         </p>
       )}
 
@@ -264,7 +265,15 @@ export function FillRunner({
         <span className="fill-runner__nav-spacer" />
         {onSaveDraft && (
           <button onClick={handleSaveDraft} disabled={savingDraft || submitting}>
-            {savingDraft ? "Saving…" : draftSaved ? "Saved ✓" : "Save and finish later"}
+            {savingDraft ? (
+              "Saving…"
+            ) : draftSaved ? (
+              <>
+                Saved <Icon name="check" size={12} />
+              </>
+            ) : (
+              "Save and finish later"
+            )}
           </button>
         )}
         {isLastStep && secondaryAction && (

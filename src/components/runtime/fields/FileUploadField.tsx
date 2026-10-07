@@ -2,6 +2,7 @@ import { useState } from "react";
 import { uploadAttachment, deleteAttachment } from "../../../services/attachments";
 import { textStyleToCss } from "../../../lib/textStyle";
 import { QuestionMedia } from "./QuestionMedia";
+import { Icon } from "../../common/Icon";
 import type { AnswerValue, FileAttachment, FormField } from "../../../formsSchema/types";
 
 interface Props {
@@ -95,7 +96,7 @@ export function FileUploadField({ field, formId, responseId, value, onChange, er
               </a>{" "}
               <span className="fill-field__help">({Math.round(f.size / 1024)} KB)</span>
               <button onClick={() => handleRemove(f)} title="Remove">
-                ✕
+                <Icon name="close" size={13} />
               </button>
             </li>
           ))}

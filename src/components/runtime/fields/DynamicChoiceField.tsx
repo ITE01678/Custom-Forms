@@ -28,11 +28,18 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
   const { status, rows, error: autofillError, retry } = useAutofill(field, respondentEmail, priorAnswers);
   const dyn = field.connectorAutofill?.dynamicOptions;
   const isMulti = field.type === "multiChoice";
+  const includeRespondent = !!field.connectorAutofill?.includeRespondentAsOption;
 
   const options = dyn
     ? rows
         .map((r) => ({ value: String(r[dyn.valueKey] ?? ""), label: String(r[dyn.labelKey] ?? "") }))
         .filter((o) => o.value)
+        // A "team roster" lookup naturally includes the respondent's own
+        // row (they're a member of their own team) — excluded by default
+        // (see ConnectorAutofillConfig.includeRespondentAsOption's doc
+        // comment), matched against the resolved value column since
+        // that's the one thing every row shape has in common.
+        .filter((o) => includeRespondent || o.value.toLowerCase() !== respondentEmail.toLowerCase())
     : [];
 
   const selected = isMulti ? (Array.isArray(value) ? (value as string[]).filter((v) => typeof v === "string") : []) : typeof value === "string" ? value : "";

@@ -210,6 +210,18 @@ export interface ConnectorAutofillConfig {
    *  sheet's header names) becomes the option's stored value vs its
    *  displayed label. */
   dynamicOptions?: { valueKey: string; labelKey: string };
+  /** dynamicOptions only: whether the signed-in respondent's own row is
+   *  kept as a selectable option. A "team roster" lookup (e.g. every
+   *  employee under the same HOD) naturally includes the respondent
+   *  themselves, since they're a member of their own team — off by
+   *  default so a question like "who from your team is coming" doesn't
+   *  show the respondent as an option on themselves; switch on for a
+   *  question where self-selection makes sense (e.g. "confirm your own
+   *  attendance along with your team's"). Matched by comparing each row's
+   *  resolved dynamicOptions.valueKey against the respondent's own email,
+   *  case-insensitively — reliable when valueKey is an email/UPN column
+   *  (the common case for this connector), not guaranteed otherwise. */
+  includeRespondentAsOption?: boolean;
 }
 
 export interface FormField {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAutofill } from "./useAutofill";
 import { QuestionMedia } from "./QuestionMedia";
 import { textStyleToCss } from "../../../lib/textStyle";
@@ -81,6 +82,38 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
 
   const selected = isMulti ? (Array.isArray(value) ? (value as string[]).filter((v) => typeof v === "string") : []) : typeof value === "string" ? value : "";
 
+  // Entries the RESPONDENT typed in themselves (via the "someone not
+  // listed" box below) — per-response, unlike manualOptions above which
+  // are the same fixed list for every respondent. Solves the case a fixed
+  // builder list can't: each HOD's team is different (HOD A might need to
+  // add "D", HOD P might need "R" and "S"), so there's no single static
+  // list that fits everyone. Derived from `selected` itself (any label
+  // that doesn't match a known option) rather than separate state, so a
+  // previously-added custom name keeps showing up — and stays checked —
+  // across remounts (resuming a saved draft, admin review, etc.) with no
+  // extra plumbing.
+  const knownLabelsLower = new Set(options.map((o) => o.label.trim().toLowerCase()));
+  const customSelectedLabels = isMulti
+    ? (selected as string[]).filter((l) => !knownLabelsLower.has(l.trim().toLowerCase()))
+    : typeof selected === "string" && selected && !knownLabelsLower.has(selected.trim().toLowerCase())
+      ? [selected]
+      : [];
+  const displayOptions = [...options, ...customSelectedLabels.map((l) => ({ value: l, label: l }))];
+
+  const [customText, setCustomText] = useState("");
+
+  function addCustom() {
+    const name = customText.trim();
+    if (!name) return;
+    if (isMulti) {
+      const current = selected as string[];
+      if (!current.some((v) => v.toLowerCase() === name.toLowerCase())) onChange([...current, name]);
+    } else {
+      onChange(name);
+    }
+    setCustomText("");
+  }
+
   // The stored answer is the option's LABEL, not its `value` (e.g. the
   // employee's name, not their email) — connector-resolved rows are live
   // data, gone by the time the response is written to Excel, so there's no
@@ -116,15 +149,15 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
           Couldn't load options{autofillError ? `: ${autofillError}` : "."} <button onClick={retry}>Retry</button>
         </div>
       )}
-      {status === "empty" && <p className="fill-field__help">No matching records found.</p>}
-      {(status === "resolved" || status === "empty") && options.length > 0 && (
+      {status === "empty" && displayOptions.length === 0 && <p className="fill-field__help">No matching records found.</p>}
+      {(status === "resolved" || status === "empty") && displayOptions.length > 0 && (
         <>
           {!isMulti && field.choiceDisplay === "dropdown" ? (
             <select id={field.id} className="fill-field__input" value={selected as string} onChange={(e) => onChange(e.target.value)}>
               <option value="" disabled>
                 Choose…
               </option>
-              {options.map((opt) => (
+              {displayOptions.map((opt) => (
                 <option key={opt.value} value={opt.label}>
                   {opt.label}
                 </option>
@@ -132,7 +165,7 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
             </select>
           ) : (
             <div>
-              {options.map((opt) => {
+              {displayOptions.map((opt) => {
                 const isSelected = isMulti ? (selected as string[]).includes(opt.label) : selected === opt.label;
                 return (
                   <label key={opt.value} className={`choice-pill ${isSelected ? "is-selected" : ""}`}>
@@ -149,6 +182,26 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
             </div>
           )}
         </>
+      )}
+
+      {field.allowOther && status !== "loading" && (
+        <div className="choice-other-adder">
+          <input
+            type="text"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCustom();
+              }
+            }}
+            placeholder="Someone not listed (e.g. no official email)…"
+          />
+          <button type="button" onClick={addCustom} disabled={!customText.trim()}>
+            + Add
+          </button>
+        </div>
       )}
 
       {field.helpText && <span className="fill-field__help">{field.helpText}</span>}

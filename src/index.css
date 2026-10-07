@@ -1901,6 +1901,21 @@ textarea {
   padding: 0.3rem 0.5rem;
 }
 
+/* DynamicChoiceField's "someone not listed" adder — deliberately a
+ *  separate input+button (not the single-slot choice-pill__other-input
+ *  pattern above), since a connector-sourced roster may need MULTIPLE
+ *  arbitrary manual additions per response (e.g. two different team
+ *  members with no official email), not just one catch-all "Other". */
+.choice-other-adder {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.choice-other-adder input {
+  flex: 1;
+}
+
 .choice-pill--media {
   flex-direction: column;
   align-items: flex-start;

@@ -258,12 +258,14 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
             })()}
           </div>
 
-          {!field.connectorAutofill?.dynamicOptions && (
-            <div className="field-editor__toggles">
-              <label>
-                <input type="checkbox" checked={!!field.allowOther} onChange={(e) => set({ allowOther: e.target.checked })} />
-                Add "Other" option
-              </label>
+          <div className="field-editor__toggles">
+            <label>
+              <input type="checkbox" checked={!!field.allowOther} onChange={(e) => set({ allowOther: e.target.checked })} />
+              {field.connectorAutofill?.dynamicOptions
+                ? 'Let the respondent type in someone not listed (e.g. no official email — a per-response addition, different for every respondent, unlike the manual fallback list above)'
+                : 'Add "Other" option'}
+            </label>
+            {!field.connectorAutofill?.dynamicOptions && (
               <label>
                 <input
                   type="checkbox"
@@ -272,8 +274,8 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                 />
                 Shuffle option order
               </label>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 

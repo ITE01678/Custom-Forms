@@ -210,19 +210,24 @@ export interface ConnectorAutofillConfig {
    *  sheet's header names) becomes the option's stored value vs its
    *  displayed label. */
   dynamicOptions?: { valueKey: string; labelKey: string };
-  /** dynamicOptions only: whether the signed-in respondent's own row is
-   *  kept as a selectable option. A "team roster" lookup (e.g. every
+  /** dynamicOptions only: whether the signed-in respondent is kept
+   *  selectable alongside their team. A "team roster" lookup (e.g. every
    *  employee under the same HOD) naturally includes the respondent
    *  themselves, since they're a member of their own team — off by
    *  default so a question like "who from your team is coming" doesn't
    *  show the respondent as an option on themselves; switch on for a
    *  question where self-selection makes sense (e.g. "confirm your own
-   *  attendance along with your team's"). Matched against the RAW
-   *  resolved row's own identity-ish fields (mail/userPrincipalName/etc.
-   *  — see DynamicChoiceField.tsx's rowMatchesRespondent), NOT
-   *  dynamicOptions.valueKey — valueKey is very often set to a
-   *  display-friendly column like "displayName" (never an email), so
-   *  matching against it would silently never work. */
+   *  attendance along with your team's"). Two mechanisms, in order (see
+   *  DynamicChoiceField.tsx): (1) if the connector's OWN resolved rows
+   *  already include the respondent, stop excluding that row — matched
+   *  against its raw identity-ish fields (mail/userPrincipalName/etc, via
+   *  rowMatchesRespondent), not dynamicOptions.valueKey, since valueKey is
+   *  very often a display-friendly column like "displayName" (never an
+   *  email); (2) if the connector's rows never included the respondent at
+   *  all (the lookup key resolves to a different team than their own), a
+   *  self-option is synthesized directly from their own Graph profile, so
+   *  this toggle always does something observable instead of silently
+   *  depending on whether the connector happened to return them. */
   includeRespondentAsOption?: boolean;
 }
 

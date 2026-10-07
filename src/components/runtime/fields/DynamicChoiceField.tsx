@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAutofill } from "./useAutofill";
 import { QuestionMedia } from "./QuestionMedia";
 import { textStyleToCss } from "../../../lib/textStyle";
+import { getMyProfileCached } from "../../../services/profileCache";
 import type { AnswerValue, FormField } from "../../../formsSchema/types";
 
 // Common identity-ish column names, checked against the RAW resolved row —
@@ -52,6 +53,27 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
   const isMulti = field.type === "multiChoice";
   const includeRespondent = !!field.connectorAutofill?.includeRespondentAsOption;
 
+  // Only needed to SYNTHESIZE a self-option below (when the connector's own
+  // resolved rows never included the respondent at all — e.g. the lookup
+  // key points at someone else's team) — not fetched unless the toggle is
+  // actually on. getMyProfileCached() is memoized app-wide, so multiple
+  // fields with this toggle on share one request, not one each.
+  const [myProfile, setMyProfile] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    if (!includeRespondent) return;
+    let cancelled = false;
+    getMyProfileCached()
+      .then((p) => {
+        if (!cancelled) setMyProfile(p as unknown as Record<string, unknown>);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [includeRespondent]);
+
+  const respondentAlreadyInRows = rows.some((r) => rowMatchesRespondent(r, respondentEmail));
+
   const connectorOptions = dyn
     ? rows
         // A "team roster" lookup naturally includes the respondent's own
@@ -66,19 +88,42 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
         .filter((o) => o.value)
     : [];
 
+  // If the toggle is on but the respondent was never IN the connector's
+  // resolved rows to begin with (the lookup key resolves to a different
+  // manager/team than the respondent's own, or the connector's data just
+  // doesn't include them) — there's no existing row for the filter above to
+  // stop excluding. Synthesize one directly from the respondent's own
+  // profile instead, so the toggle always does something observable rather
+  // than silently depending on whether the connector happened to return
+  // them. Mapped through the SAME valueKey/labelKey the designer configured
+  // (e.g. displayName/mail), so this only produces a usable option when
+  // those are real Graph profile property names (the graph-directReports/
+  // graph-profile connectors) — for excel-lookup/sharepoint-list-query
+  // sources, myProfile won't have matching keys and this is silently empty.
+  const syntheticSelfOption =
+    dyn && includeRespondent && !respondentAlreadyInRows && myProfile
+      ? (() => {
+          const selfValue = String(myProfile[dyn.valueKey] ?? "");
+          const selfLabel = String(myProfile[dyn.labelKey] ?? "");
+          return selfValue && selfLabel ? { value: selfValue, label: selfLabel } : null;
+        })()
+      : null;
+
   // Manual fallback entries (field.options, the builder's static-options
   // editor) — for anyone the connector can't find at all, e.g. someone
   // with no official email/Entra account, so no connector could ever
   // resolve a row for them. Appended after the connector's own results,
-  // skipping anything whose label the connector already produced so a
-  // manually-added entry that's ALSO found by the connector doesn't show
-  // up twice.
-  const seenLabels = new Set(connectorOptions.map((o) => o.label.trim().toLowerCase()));
+  // skipping anything whose label the connector (or the synthesized self
+  // option) already produced so nothing shows up twice.
+  const seenLabels = new Set([
+    ...connectorOptions.map((o) => o.label.trim().toLowerCase()),
+    ...(syntheticSelfOption ? [syntheticSelfOption.label.trim().toLowerCase()] : []),
+  ]);
   const manualOptions = (field.options ?? [])
     .map((o) => ({ value: o.value, label: o.label }))
     .filter((o) => !seenLabels.has(o.label.trim().toLowerCase()));
 
-  const options = [...connectorOptions, ...manualOptions];
+  const options = [...connectorOptions, ...(syntheticSelfOption ? [syntheticSelfOption] : []), ...manualOptions];
 
   const selected = isMulti ? (Array.isArray(value) ? (value as string[]).filter((v) => typeof v === "string") : []) : typeof value === "string" ? value : "";
 

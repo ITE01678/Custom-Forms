@@ -3,6 +3,27 @@ import { QuestionMedia } from "./QuestionMedia";
 import { textStyleToCss } from "../../../lib/textStyle";
 import type { AnswerValue, FormField } from "../../../formsSchema/types";
 
+// Common identity-ish column names, checked against the RAW resolved row —
+// NOT the designer's chosen valueKey. A designer very reasonably sets
+// valueKey/labelKey to the same display-friendly column (e.g. "displayName"
+// for both, so the stored answer and the picker both show a name, not an
+// email) — matching respondentEmail against THAT would never work, since a
+// display name is never an email. graph-directReports/graph-profile rows
+// always carry `mail`/`userPrincipalName` regardless of what the designer
+// picked for display; excel-lookup/sharepoint-list-query rows carry
+// whatever header names the source sheet/list happens to use, so this list
+// covers the common spellings but isn't exhaustive.
+const RESPONDENT_IDENTITY_KEYS = ["mail", "userPrincipalName", "email", "Email", "UPN", "upn", "EmployeeMail"];
+
+function rowMatchesRespondent(row: Record<string, unknown>, respondentEmail: string): boolean {
+  const target = respondentEmail.trim().toLowerCase();
+  if (!target) return false;
+  return RESPONDENT_IDENTITY_KEYS.some((key) => {
+    const v = row[key];
+    return typeof v === "string" && v.trim().toLowerCase() === target;
+  });
+}
+
 interface Props {
   field: FormField;
   respondentEmail: string;
@@ -30,17 +51,33 @@ export function DynamicChoiceField({ field, respondentEmail, priorAnswers, value
   const isMulti = field.type === "multiChoice";
   const includeRespondent = !!field.connectorAutofill?.includeRespondentAsOption;
 
-  const options = dyn
+  const connectorOptions = dyn
     ? rows
-        .map((r) => ({ value: String(r[dyn.valueKey] ?? ""), label: String(r[dyn.labelKey] ?? "") }))
-        .filter((o) => o.value)
         // A "team roster" lookup naturally includes the respondent's own
         // row (they're a member of their own team) — excluded by default
         // (see ConnectorAutofillConfig.includeRespondentAsOption's doc
-        // comment), matched against the resolved value column since
-        // that's the one thing every row shape has in common.
-        .filter((o) => includeRespondent || o.value.toLowerCase() !== respondentEmail.toLowerCase())
+        // comment). Filtered on the RAW row's own identity fields, not the
+        // designer's chosen valueKey — see rowMatchesRespondent's comment
+        // for why (valueKey is very often "displayName", which is never
+        // an email, so comparing against it silently never matched).
+        .filter((r) => includeRespondent || !rowMatchesRespondent(r, respondentEmail))
+        .map((r) => ({ value: String(r[dyn.valueKey] ?? ""), label: String(r[dyn.labelKey] ?? "") }))
+        .filter((o) => o.value)
     : [];
+
+  // Manual fallback entries (field.options, the builder's static-options
+  // editor) — for anyone the connector can't find at all, e.g. someone
+  // with no official email/Entra account, so no connector could ever
+  // resolve a row for them. Appended after the connector's own results,
+  // skipping anything whose label the connector already produced so a
+  // manually-added entry that's ALSO found by the connector doesn't show
+  // up twice.
+  const seenLabels = new Set(connectorOptions.map((o) => o.label.trim().toLowerCase()));
+  const manualOptions = (field.options ?? [])
+    .map((o) => ({ value: o.value, label: o.label }))
+    .filter((o) => !seenLabels.has(o.label.trim().toLowerCase()));
+
+  const options = [...connectorOptions, ...manualOptions];
 
   const selected = isMulti ? (Array.isArray(value) ? (value as string[]).filter((v) => typeof v === "string") : []) : typeof value === "string" ? value : "";
 

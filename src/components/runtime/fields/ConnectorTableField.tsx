@@ -53,13 +53,23 @@ export function ConnectorTableField({ field, respondentEmail, priorAnswers, valu
   const [mode, setMode] = useState<"auto" | "manual">(() => (existingManualRows ? "manual" : "auto"));
   const [manualRows, setManualRows] = useState<Record<string, string | number | null>[]>(() => existingManualRows ?? []);
 
+  // Keyed on rows' actual CONTENT, not rows.length — a dependent lookup key
+  // changing (e.g. another field the connector's key expression references)
+  // can make useAutofill re-resolve to a DIFFERENT set of rows that happens
+  // to be the same length as before, which rows.length alone would miss
+  // entirely, leaving the saved answer silently stale while the on-screen
+  // grid (ConnectorGridReadOnly, which renders live `rows` directly) shows
+  // the fresh data — same class of bug useAutofill.ts's own priorAnswersKey
+  // comment documents, fixed the same way.
+  const rowsKey = JSON.stringify(rows);
+
   useEffect(() => {
     if (mode !== "auto") return;
     if (status === "resolved" || status === "empty") {
       onChange(toRepeatingValue(rows, cfg?.connectorId ?? "", "connector"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, rows.length, mode]);
+  }, [status, rowsKey, mode]);
 
   function commitManualRows(next: Record<string, string | number | null>[]) {
     setManualRows(next);

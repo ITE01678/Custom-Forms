@@ -22,6 +22,21 @@ interface Props {
 const CHOICE_TYPES = new Set(["singleChoice", "multiChoice"]);
 const TEXT_TYPES = new Set(["shortText", "longText", "email", "approverEmail"]);
 
+/** A sensible default lookup key for a newly-picked connector — NOT a
+ *  one-size-fits-all "{{respondent.department}}": graph-directReports
+ *  resolves its key as a MANAGER'S email (see
+ *  services/connectors/graphDirectReports.ts), so a department name
+ *  there isn't just unused, it's actively wrong — Graph gets handed
+ *  "Finance" as if it were a user id and 400s/returns nothing. An EMPTY
+ *  key is what that connector itself treats as "default to the
+ *  respondent's own email" — exactly the common "I'm the HOD, show MY
+ *  direct reports" setup. excel-lookup/sharepoint-list-query keep the
+ *  department-name default, matching SETUP.md's own walkthrough example. */
+function defaultLookupKeyExpressionFor(connectorType: ConnectorType): string {
+  if (connectorType === "graph-directReports" || connectorType === "graph-profile") return "";
+  return "{{respondent.department}}";
+}
+
 const PATTERN_PRESETS: { label: string; pattern?: string }[] = [
   { label: "No format restriction" },
   { label: "Email address", pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" },
@@ -148,8 +163,9 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
 
       {isChoice && field.connectorAutofill?.dynamicOptions && (
         <p className="fill-field__help" style={{ marginLeft: "6rem" }}>
-          Options come from the connector at fill time (configured below) — the static list is
-          unused while that's on.
+          Most options come from the connector at fill time (configured below). Use the list here
+          for anyone the connector can't find — e.g. someone with no official email/Entra account —
+          added as extra, always-available choices alongside whatever the connector resolves.
         </p>
       )}
 
@@ -166,9 +182,12 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
         </div>
       )}
 
-      {isChoice && !field.connectorAutofill?.dynamicOptions && (
+      {isChoice && (
         <>
           <div className="field-editor__options">
+            {field.connectorAutofill?.dynamicOptions && (field.options?.length ?? 0) === 0 && (
+              <p className="fill-field__help">No manual fallback entries yet.</p>
+            )}
             {(field.options ?? []).map((opt, i) => (
               <div key={opt.value} className="field-editor__option">
                 <div className="field-editor__option-row">
@@ -239,20 +258,22 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
             })()}
           </div>
 
-          <div className="field-editor__toggles">
-            <label>
-              <input type="checkbox" checked={!!field.allowOther} onChange={(e) => set({ allowOther: e.target.checked })} />
-              Add "Other" option
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={!!field.shuffleOptions}
-                onChange={(e) => set({ shuffleOptions: e.target.checked })}
-              />
-              Shuffle option order
-            </label>
-          </div>
+          {!field.connectorAutofill?.dynamicOptions && (
+            <div className="field-editor__toggles">
+              <label>
+                <input type="checkbox" checked={!!field.allowOther} onChange={(e) => set({ allowOther: e.target.checked })} />
+                Add "Other" option
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!field.shuffleOptions}
+                  onChange={(e) => set({ shuffleOptions: e.target.checked })}
+                />
+                Shuffle option order
+              </label>
+            </div>
+          )}
         </>
       )}
 
@@ -414,7 +435,7 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                       ? {
                           connectorId: connectorOptions[0].id,
                           connectorType: connectorOptions[0].type,
-                          lookupKeyExpression: "{{respondent.department}}",
+                          lookupKeyExpression: defaultLookupKeyExpressionFor(connectorOptions[0].type),
                           outputMapping: [{ key: "value", label: field.label, type: "text" }],
                           expectMultipleRows: false,
                           emptyResultBehavior: "showMessage",
@@ -497,7 +518,21 @@ export function FieldEditor({ formId, sectionId, field, isFirst, isLast, connect
                   onChange={(e) => {
                     const opt = connectorOptions.find((c) => c.id === e.target.value);
                     if (!opt || !field.connectorAutofill) return;
-                    set({ connectorAutofill: { ...field.connectorAutofill, connectorId: opt.id, connectorType: opt.type } });
+                    const typeChanged = opt.type !== field.connectorAutofill.connectorType;
+                    set({
+                      connectorAutofill: {
+                        ...field.connectorAutofill,
+                        connectorId: opt.id,
+                        connectorType: opt.type,
+                        // Only reset the lookup key when switching to a
+                        // DIFFERENT kind of connector — picking a different
+                        // instance of the same type (e.g. another
+                        // excel-lookup sheet) keeps whatever key the
+                        // designer already typed, since that's usually
+                        // still the right shape for it.
+                        ...(typeChanged ? { lookupKeyExpression: defaultLookupKeyExpressionFor(opt.type) } : {}),
+                      },
+                    });
                   }}
                 >
                   {connectorOptions.map((c) => (
@@ -668,6 +703,7 @@ interface RepeatingTableSettingsProps {
 function RepeatingTableSettings({ field, connectorOptions, onChange }: RepeatingTableSettingsProps) {
   const columns = field.columns ?? [];
   const autofill = field.connectorAutofill;
+  const isGraphConnector = autofill?.connectorType === "graph-directReports" || autofill?.connectorType === "graph-profile";
 
   function updateAutofill(updates: Partial<NonNullable<FormField["connectorAutofill"]>>) {
     if (!autofill) return;
@@ -691,11 +727,14 @@ function RepeatingTableSettings({ field, connectorOptions, onChange }: Repeating
           onChange={(e) => {
             const opt = connectorOptions.find((c) => c.id === e.target.value);
             if (!opt) return;
+            const typeChanged = !autofill || opt.type !== autofill.connectorType;
             onChange({
               connectorAutofill: {
                 connectorId: opt.id,
                 connectorType: opt.type,
-                lookupKeyExpression: autofill?.lookupKeyExpression ?? "{{respondent.department}}",
+                lookupKeyExpression: typeChanged
+                  ? defaultLookupKeyExpressionFor(opt.type)
+                  : (autofill?.lookupKeyExpression ?? defaultLookupKeyExpressionFor(opt.type)),
                 outputMapping: columns.map((c) => ({ key: c.key, label: c.label, type: c.type })),
                 expectMultipleRows: true,
                 emptyResultBehavior: autofill?.emptyResultBehavior ?? "showMessage",
@@ -720,12 +759,31 @@ function RepeatingTableSettings({ field, connectorOptions, onChange }: Repeating
           type="text"
           value={autofill?.lookupKeyExpression ?? ""}
           onChange={(e) => updateAutofill({ lookupKeyExpression: e.target.value })}
-          placeholder="{{respondent.department}} or {{fields.someFieldId}}"
+          placeholder={
+            isGraphConnector
+              ? "Leave blank for your own direct reports, or {{respondent.manager}}/an email for someone else's"
+              : "{{respondent.department}} or {{fields.someFieldId}}"
+          }
         />
       </label>
+      {isGraphConnector && (
+        <p className="fill-field__help">
+          This connector's key is a MANAGER's email, not a department name — leave it blank to list the
+          signed-in respondent's own direct reports (the common "I'm the HOD, show my team" setup).
+        </p>
+      )}
 
       <div>
-        <strong>Columns</strong> (must match the connector's output field names)
+        <strong>Columns</strong>{" "}
+        {isGraphConnector ? (
+          <span className="fill-field__help">
+            — this connector returns Microsoft profile properties, not spreadsheet column names: use{" "}
+            <code>mail</code>, <code>userPrincipalName</code>, <code>displayName</code>, <code>department</code>,{" "}
+            <code>jobTitle</code>, or <code>employeeId</code> as the "Connector output key" below, exactly.
+          </span>
+        ) : (
+          "(must match the connector's output field names)"
+        )}
         {columns.map((col, i) => (
           <div key={i} className="field-editor__option">
             <input

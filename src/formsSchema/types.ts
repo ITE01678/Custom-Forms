@@ -217,10 +217,12 @@ export interface ConnectorAutofillConfig {
    *  default so a question like "who from your team is coming" doesn't
    *  show the respondent as an option on themselves; switch on for a
    *  question where self-selection makes sense (e.g. "confirm your own
-   *  attendance along with your team's"). Matched by comparing each row's
-   *  resolved dynamicOptions.valueKey against the respondent's own email,
-   *  case-insensitively — reliable when valueKey is an email/UPN column
-   *  (the common case for this connector), not guaranteed otherwise. */
+   *  attendance along with your team's"). Matched against the RAW
+   *  resolved row's own identity-ish fields (mail/userPrincipalName/etc.
+   *  — see DynamicChoiceField.tsx's rowMatchesRespondent), NOT
+   *  dynamicOptions.valueKey — valueKey is very often set to a
+   *  display-friendly column like "displayName" (never an email), so
+   *  matching against it would silently never work. */
   includeRespondentAsOption?: boolean;
 }
 

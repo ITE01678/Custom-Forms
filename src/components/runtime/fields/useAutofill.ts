@@ -47,7 +47,24 @@ export function useAutofill(
   // mounted — a dependent field's options silently never refreshed when
   // the field it depended on changed, and clicking "Retry" didn't help
   // either, since retry is this same stale function.
-  const priorAnswersKey = JSON.stringify(priorAnswers);
+  //
+  // THIS FIELD'S OWN answer is deliberately excluded before computing that
+  // key — confirmed the hard way as a genuine infinite loop, not just a
+  // theoretical risk: ConnectorTableField writes its own resolved rows back
+  // via onChange (so they're actually saved as the response), stamped with
+  // a fresh `fetchedAt` timestamp every time (RepeatingTableValue.meta).
+  // That write lands in this same `priorAnswers` map on the next render
+  // (every field's answer, including its own, is passed back down from
+  // FillRunner) — with a DIFFERENT fetchedAt, the JSON changes even though
+  // the actual row data didn't, `priorAnswersKey` changes, `resolve` gets a
+  // new identity, the effect below re-fires, fetches again, writes again
+  // with a NEWER fetchedAt — forever, visible as the exact same two Graph
+  // calls (the connector lookup + the connector-config List read) repeating
+  // nonstop and the page never settling. A field's lookup key can only
+  // sensibly reference OTHER fields anyway (referencing itself would be
+  // circular), so dropping its own entry here is always safe.
+  const { [field.id]: _ownAnswer, ...otherAnswers } = priorAnswers;
+  const priorAnswersKey = JSON.stringify(otherAnswers);
 
   const resolve = useCallback(async () => {
     if (field.fillMode === "manual") return;
@@ -74,10 +91,10 @@ export function useAutofill(
         const profile = await getMyProfileCached();
         const keyValue = resolveTemplate(cfg.lookupKeyExpression, {
           respondent: profile as unknown as Record<string, unknown>,
-          fields: priorAnswers,
+          fields: otherAnswers,
         });
         const parsedConfig = JSON.parse(configItem.fields.ConfigJson);
-        const rows = await connector.resolve(parsedConfig, { keyValue }, { currentUserEmail: respondentEmail, priorAnswers });
+        const rows = await connector.resolve(parsedConfig, { keyValue }, { currentUserEmail: respondentEmail, priorAnswers: otherAnswers });
         setState({ status: rows.length === 0 ? "empty" : "resolved", rows });
         return;
       }
